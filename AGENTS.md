@@ -105,17 +105,29 @@ Hermes: "派 Reviewer 确认修复质量"
 ```
 hermes-agents/
 ├── opencode.json              # OpenCode 项目配置
+├── config-tool.html           # 可视化配置工具
 ├── AGENTS.md                  # 本说明文件
 ├── README.md                  # 用户使用指南
+├── suites/                    # 多套预设方案
+│   ├── hermes-fullstack/
+│   ├── lite-review/
+│   ├── doc-writer/
+│   └── mini-runner/
+├── tools/                     # 辅助脚本
+│   ├── _shared.py             # 公共模块
+│   ├── import_suite.py        # 方案导入脚本
+│   └── verify_suites.py       # 配置验证脚本
 └── .opencode/
-    └── agents/
-        ├── hermes.md         # Router 主代理
-        ├── scout.md          # 代码探索专家
-        ├── architect.md      # 架构设计专家
-        ├── coder.md          # 代码编写专家
-        ├── reviewer.md       # 代码审查专家
-        ├── shellrunner.md    # 命令行专家
-        └── researcher.md     # 调研检索专家
+    ├── agents/
+    │   ├── hermes.md         # Router 主代理
+    │   ├── scout.md          # 代码探索专家
+    │   ├── architect.md      # 架构设计专家
+    │   ├── coder.md          # 代码编写专家
+    │   ├── reviewer.md       # 代码审查专家
+    │   ├── shellrunner.md    # 命令行专家
+    │   └── researcher.md     # 调研检索专家
+    └── skill/
+        └── hermes-import/     # 导入 Skill
 ```
 
 ## 设计原则
@@ -140,4 +152,4 @@ hermes-agents/
 
 ## 版本
 
-v1.0.0 — 2026-05-22 初始版本
+v1.1.0 — 2026-05-24 全面优化：防抖、统一Modal、JSON导入导出、共享模块、回滚机制、自动修复

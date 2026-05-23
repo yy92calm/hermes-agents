@@ -18,11 +18,17 @@ open ~/Desktop/projects/hermes-agents/config-tool.html
 ```
 
 功能：
-- 点击 **「加载预设」** 一键导入全部 7 个 Agent
-- 左侧列表管理 Agent（增删改查）
+- **「加载预设」** — 一键导入 4 套预设方案（全栈/轻量审查/文档写作/极简执行）
+- **「📤 导出方案 / 📥 导入方案」** — 将整套 Agent 配置导出为 JSON 分享给他人，或从 JSON 文件导入
+- **「导出到 suites/」** — 将编辑好的配置写入 `suites/` 目录持久化
+- **「从 suites 加载」** — 从 `suites/` 目录读取已有配置回工具继续编辑
+- **「验证 suites」** — 检查 `suites/` 中所有配置的完整性和一致性
+- **「写入 suites & OpenCode」** — 一键写入 `suites/` 和 `.opencode/agents/` 并更新 `opencode.json`
+- 左侧列表管理 Agent（增删改查），支持多方案切换
 - 中间表单编辑配置（名称、模式、描述、模型、温度、颜色、系统提示词）
 - 右侧勾选工具/技能 + 配置权限 + 实时 Markdown 预览
-- **「导出当前」** 或 **「全部导出」** 一键下载 .md 文件到 `.opencode/agents/`
+- **智能输入防抖** — 编辑 System Prompt 等长文本时自动 200ms 防抖，保存和预览不卡顿
+- **统一对话框** — 所有确认、输入操作均使用统一的自定义 Modal 组件
 
 ### 方式二：手动配置
 
@@ -198,8 +204,9 @@ hermes-agents/
 │   ├── doc-writer/            # 文档写作套件（3 Agent）
 │   └── mini-runner/           # 极简执行套件（3 Agent）
 ├── tools/                     # 辅助脚本
-│   ├── import_suite.py        # 命令行方案导入脚本
-│   └── verify_suites.py       # suites 配置一致性检查脚本
+│   ├── _shared.py             # 公共模块（YAML 解析、字段验证、文件操作等）
+│   ├── import_suite.py        # 命令行方案导入脚本（支持回滚 + suites 同步）
+│   └── verify_suites.py       # suites 配置一致性检查脚本（支持 --fix 自动修复）
 └── .opencode/
     ├── agents/                # 当前激活的 Agent（可被覆盖）
     └── skill/hermes-import/   # OpenCode Skill：导入方案
@@ -241,20 +248,40 @@ python tools/import_suite.py --list
 # 导入到指定项目
 python tools/import_suite.py hermes-fullstack --target /path/to/your-project
 python tools/import_suite.py lite-review --target .
+
+# 导入并跳过同步到项目自身的 suites/ 目录
+python tools/import_suite.py hermes-fullstack --target . --no-sync
 ```
 
 脚本会自动：
 - 复制 agent .md 文件到 `.opencode/agents/`
-- 解析 YAML frontmatter 提取配置
+- 解析 YAML frontmatter 提取配置并校验字段完整性
 - 合并更新 `opencode.json`（保留已有字段）
+- **同步到项目自身的 `suites/` 目录**（可用 `--no-sync` 跳过）
+- **导入失败时自动回滚** — 删除已复制的文件、恢复 opencode.json 备份
 
-### 检查配置一致性
+### 检查与修复配置一致性
 
 ```bash
+# 检查所有方案配置
 python tools/verify_suites.py
+
+# 自动修复发现的问题（备份原始文件为 .md.bak）
+python tools/verify_suites.py --fix
 ```
 
-逐个检查 suites/ 下所有方案的 agent 文件是否完整、跨方案配置是否一致。
+检查项包括：
+- YAML frontmatter 是否存在且合法
+- 必要字段（description, model, mode, color, temperature, max_iterations）是否完整
+- temperature / max_iterations 是否在合理范围内
+- 跨方案同名 Agent 的配置是否一致
+
+`--fix` 模式会自动修复以下问题：
+- 缺失字段 → 填充默认值
+- temperature/max_iterations 越界 → 裁切到合理范围
+- 无效 mode → 回退为 subagent
+
+> 修复前会自动备份原始文件为 `.md.bak`。
 
 ## 故障排除
 
@@ -267,42 +294,6 @@ python tools/verify_suites.py
 | 「写入 suites & OpenCode」失败 | 浏览器不支持 File System Access API | 使用「导出到 suites/」降级到下载模式，然后手动放入目录 |
 | 跨方案同名 agent 颜色不一致 | suits/ 和预设数据不同步 | 运行 `python tools/verify_suites.py` 检查，然后用 config-tool 的「从 suites 加载」同步 |
 | 预设方案 agent 数量不对 | localStorage 旧数据残留 | 点击「清空当前方案」，然后「加载预设」重新导入 |
-
-## 常见问题
-
-### Q: 如何让 Hermes 不调度某个子代理？
-
-在 `opencode.json` 中将该子代理的 `hidden` 设为 `true`，或在 Hermes 的 `permissions` 中限制 task 调用范围。
-
-### Q: 能否让某个子代理完全自动运行，不弹确认？
-
-将对应权限设为 `allow`：
-
-```yaml
-permissions:
-  edit: allow
-  bash: allow
-```
-
-### Q: 如何查看子代理的工作过程？
-
-使用 `<Leader>+Right`（或配置的 `session_child_cycle` 快捷键）在父会话和子会话之间切换，查看子代理的工作详情。
-
-### Q: 子代理可以互相调用吗？
-
-默认配置中子代理没有 Task 工具权限，不可互相调用。如需启用，在对应代理的 `tools` 中添加 `task: true`。
-
-### Q: config-tool.html 和 suites/ 目录是什么关系？
-
-`config-tool.html` 是编辑工具（数据存在浏览器 localStorage 中），`suites/` 是持久化的方案库。通过「写入 suites & OpenCode」将编辑好的配置导出到 suites/ 目录，或通过「从 suites 加载」将 suites/ 中的已有配置读回工具继续编辑。
-
-### Q: 如何验证 suites/ 目录下的配置是否正确？
-
-在浏览器中打开 config-tool.html，点击「验证 suites」按钮选择 hermes-agents 项目根目录即可。也可以运行命令行脚本：
-
-```bash
-python tools/verify_suites.py
-```
 
 ## 许可证
 
