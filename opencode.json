@@ -1,0 +1,179 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agents": {
+    "hermes": {
+      "mode": "primary",
+      "description": "Hermes - 多 Agent 协作框架的总调度指挥官。分析用户需求、拆解任务、调度子代理并整合结果。",
+      "model": "opencode/gpt-5.1-codex",
+      "color": "#D4A017",
+      "tools": {
+        "task": true,
+        "read": true,
+        "list": true,
+        "grep": true,
+        "glob": true,
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "web_search": false,
+        "web_fetch": false,
+        "todo_write": true
+      },
+      "permissions": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "deny"
+      }
+    },
+    "scout": {
+      "mode": "subagent",
+      "description": "Scout - 代码探索专家。快速搜索代码库、查找文件、搜索关键字、回答代码库相关问题。只读。",
+      "model": "opencode/gpt-5.1-codex",
+      "color": "#2E86C1",
+      "hidden": false,
+      "tools": {
+        "read": true,
+        "list": true,
+        "grep": true,
+        "glob": true,
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "task": false,
+        "web_search": false,
+        "web_fetch": false,
+        "todo_write": false
+      },
+      "permissions": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "deny"
+      }
+    },
+    "architect": {
+      "mode": "subagent",
+      "description": "Architect - 架构设计与技术方案专家。分析需求、设计系统架构、输出方案文档。只读。",
+      "model": "opencode/gpt-5.1-codex",
+      "color": "#8E44AD",
+      "hidden": false,
+      "tools": {
+        "read": true,
+        "list": true,
+        "grep": true,
+        "glob": true,
+        "web_search": true,
+        "web_fetch": true,
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "task": false,
+        "todo_write": false
+      },
+      "permissions": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "allow"
+      }
+    },
+    "coder": {
+      "mode": "subagent",
+      "description": "Coder - 代码编写与重构专家。实际编写代码、修改文件、运行测试。拥有代码编辑和命令执行能力。",
+      "model": "opencode/gpt-5.1-codex",
+      "color": "#27AE60",
+      "hidden": false,
+      "tools": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "list": true,
+        "grep": true,
+        "glob": true,
+        "bash": true,
+        "task": false,
+        "web_search": false,
+        "web_fetch": false,
+        "todo_write": true
+      },
+      "permissions": {
+        "edit": "ask",
+        "bash": "ask",
+        "webfetch": "deny"
+      }
+    },
+    "reviewer": {
+      "mode": "subagent",
+      "description": "Reviewer - 代码审查专家。审查代码质量、安全漏洞、性能问题、可维护性。只读。",
+      "model": "opencode/gpt-5.1-codex",
+      "color": "#E74C3C",
+      "hidden": false,
+      "tools": {
+        "read": true,
+        "list": true,
+        "grep": true,
+        "glob": true,
+        "web_search": true,
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "task": false,
+        "web_fetch": false,
+        "todo_write": false
+      },
+      "permissions": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "deny"
+      }
+    },
+    "shellrunner": {
+      "mode": "subagent",
+      "description": "ShellRunner - 命令行与脚本执行专家。执行 shell 命令、运行脚本、管理环境、自动化运维。",
+      "model": "opencode/gpt-5.1-codex",
+      "color": "#E67E22",
+      "hidden": false,
+      "tools": {
+        "bash": true,
+        "read": true,
+        "list": true,
+        "write": false,
+        "edit": false,
+        "grep": false,
+        "glob": false,
+        "task": false,
+        "web_search": false,
+        "web_fetch": false,
+        "todo_write": false
+      },
+      "permissions": {
+        "edit": "deny",
+        "bash": "ask",
+        "webfetch": "deny"
+      }
+    },
+    "researcher": {
+      "mode": "subagent",
+      "description": "Researcher - 深度调研与信息检索专家。联网搜索、阅读文档、总结分析、技术调研。只读。",
+      "model": "opencode/gpt-5.1-codex",
+      "color": "#17A589",
+      "hidden": false,
+      "tools": {
+        "web_search": true,
+        "web_fetch": true,
+        "read": true,
+        "list": false,
+        "grep": false,
+        "glob": false,
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "task": false,
+        "todo_write": false
+      },
+      "permissions": {
+        "edit": "deny",
+        "bash": "deny",
+        "webfetch": "allow"
+      }
+    }
+  }
+}

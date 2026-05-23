@@ -1,0 +1,1885 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Agents — OpenCode 多 Agent 配置工具</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #222533;
+  --border: #2a2e3d;
+  --text: #e1e4ed;
+  --text2: #8b8fa5;
+  --text3: #585c6e;
+  --accent: #6c7bff;
+  --accent2: #4a57e0;
+  --green: #3fb950;
+  --yellow: #d4a017;
+  --orange: #e67e22;
+  --red: #e74c3c;
+  --blue: #2e86c1;
+  --purple: #8e44ad;
+  --teal: #17a589;
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --transition: 0.18s ease;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+body { display:flex; flex-direction:column; }
+
+/* Top Bar */
+.topbar { display:flex; align-items:center; gap:10px; padding:10px 16px; background: var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
+.topbar .logo { font-size:16px; font-weight:700; color: var(--accent); margin-right:16px; display:flex; align-items:center; gap:6px; }
+.topbar .logo .icon { font-size:20px; }
+.topbar .btn { padding:7px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); background: var(--surface2); color: var(--text); cursor:pointer; font-size:12px; font-weight:500; transition:var(--transition); display:flex; align-items:center; gap:5px; white-space:nowrap; }
+.topbar .btn:hover { background: #2c3042; border-color: #4a4e64; }
+.topbar .btn.accent { background: var(--accent); border-color: var(--accent); color:#fff; }
+.topbar .btn.accent:hover { background: var(--accent2); }
+.topbar .btn.green { background: #1a3a1f; border-color: #2d5a32; color: var(--green); }
+.topbar .btn.green:hover { background: #224527; }
+.topbar .btn.teal { background: #1a2e2a; border-color: #2d5a4a; color: var(--teal); }
+.topbar .btn.teal:hover { background: #224535; }
+.topbar .btn.danger { background: #3a1a1a; border-color: #5a2d2d; color: var(--red); }
+.topbar .btn.danger:hover { background: #452222; }
+.topbar .sep { width:1px; height:24px; background: var(--border); margin:0 4px; }
+
+/* Suite Bar */
+.suitebar { display:flex; align-items:center; gap:8px; padding:6px 16px; background: #141722; border-bottom:1px solid var(--border); flex-shrink:0; }
+.suitebar .label { font-size:10px; font-weight:600; color: var(--text3); text-transform:uppercase; letter-spacing:0.6px; margin-right:2px; }
+.suitebar select { padding:5px 8px; border:1px solid var(--border); border-radius:var(--radius-sm); background: var(--surface); color: var(--text); font-size:12px; font-weight:500; outline:none; cursor:pointer; min-width:180px; }
+.suitebar select:focus { border-color: var(--accent); }
+.suitebar .btn-sm { padding:4px 8px; border:1px solid var(--border); border-radius:var(--radius-sm); background: transparent; color: var(--text3); cursor:pointer; font-size:11px; font-weight:500; transition:var(--transition); }
+.suitebar .btn-sm:hover { background: var(--surface2); color: var(--text); }
+.suitebar .btn-sm.create { color: var(--accent); border-color: #2a2e5a; }
+.suitebar .btn-sm.create:hover { background: #1f2240; }
+.suitebar .btn-sm.danger-sm { color: var(--red); }
+.suitebar .btn-sm.danger-sm:hover { background: #3a1a1a; }
+
+/* Main Layout */
+.main { display:flex; flex:1; overflow:hidden; }
+.panel { overflow-y:auto; flex-shrink:0; }
+.panel::-webkit-scrollbar { width:6px; }
+.panel::-webkit-scrollbar-track { background:transparent; }
+.panel::-webkit-scrollbar-thumb { background: #3a3d50; border-radius:3px; }
+
+/* Left Panel - Agent List */
+.left { width:240px; background: var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+.left-header { padding:14px 16px 10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.8px; color:var(--text2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.left-header .count { font-size:11px; color: var(--text3); }
+.agent-list { flex:1; overflow-y:auto; padding:6px 8px; }
+.agent-item { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); margin-bottom:2px; border:1px solid transparent; }
+.agent-item:hover { background: var(--surface2); }
+.agent-item.active { background: #1f2240; border-color: var(--accent); }
+.agent-item .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.agent-item .info { flex:1; min-width:0; }
+.agent-item .name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.agent-item .mode-tag { font-size:10px; padding:1px 6px; border-radius:3px; background: var(--surface2); color: var(--text3); margin-top:2px; display:inline-block; }
+.agent-item .delete-btn { opacity:0; color: var(--red); cursor:pointer; font-size:16px; padding:2px 4px; border-radius:3px; transition:var(--transition); border:none; background:none; }
+.agent-item:hover .delete-btn { opacity:0.6; }
+.agent-item .delete-btn:hover { opacity:1; background: #3a1a1a; }
+.agent-item .badge { font-size:9px; padding:2px 5px; border-radius:3px; margin-left:4px; }
+.agent-item .badge.primary { background: #3a2a00; color: var(--yellow); }
+.agent-item .badge.sub { background: #1a2a3a; color: var(--blue); }
+
+/* Center Panel - Form */
+.center { flex:1; background: var(--bg); overflow-y:auto; padding:20px 28px; }
+.center h3 { font-size:13px; font-weight:600; color: var(--text2); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:14px; margin-top:24px; }
+.center h3:first-child { margin-top:0; }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.form-grid.cols3 { grid-template-columns:1fr 1fr 1fr; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-group.full { grid-column:1 / -1; }
+.form-group label { font-size:11px; font-weight:600; color: var(--text2); text-transform:uppercase; letter-spacing:0.4px; }
+.form-group input, .form-group select, .form-group textarea { padding:9px 11px; border:1px solid var(--border); border-radius:var(--radius-sm); background: var(--surface); color: var(--text); font-size:13px; font-family:inherit; transition:var(--transition); outline:none; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(108,123,255,0.15); }
+.form-group textarea { resize:vertical; min-height:200px; font-size:12px; line-height:1.55; font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace; }
+.form-group input[type="color"] { width:48px; height:34px; padding:2px; cursor:pointer; }
+.form-group .color-row { display:flex; align-items:center; gap:8px; }
+.form-group .color-hex { font-size:12px; color: var(--text2); font-family:monospace; }
+.form-group .hint { font-size:10px; color: var(--text3); margin-top:2px; }
+
+/* Right Panel - Tools + Preview */
+.right { width:380px; background: var(--surface); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+.right-section { padding:16px 18px; border-bottom:1px solid var(--border); }
+.right-section:last-child { border-bottom:none; flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.right-section h4 { font-size:11px; font-weight:600; color: var(--text2); text-transform:uppercase; letter-spacing:0.6px; margin-bottom:10px; }
+.tools-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+.tool-check { display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:var(--radius-sm); cursor:pointer; transition:var(--transition); font-size:12px; }
+.tool-check:hover { background: var(--surface2); }
+.tool-check input[type="checkbox"] { accent-color: var(--accent); width:14px; height:14px; cursor:pointer; }
+.tool-check .tool-name { font-family:monospace; font-size:11px; }
+.tool-check .tool-icon { font-size:11px; width:16px; text-align:center; }
+
+.perms-row { display:flex; gap:8px; margin-top:8px; }
+.perm-group { flex:1; }
+.perm-group label { font-size:10px; font-weight:600; color: var(--text3); text-transform:uppercase; display:block; margin-bottom:4px; }
+.perm-group select { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:var(--radius-sm); background: var(--surface2); color: var(--text); font-size:12px; outline:none; }
+.perm-group select:focus { border-color: var(--accent); }
+
+.preview-wrap { flex:1; overflow-y:auto; padding:14px 18px; }
+.preview-wrap pre { font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace; font-size:11px; line-height:1.5; color: var(--text2); white-space:pre-wrap; word-break:break-all; margin:0; }
+.preview-wrap .yaml-key { color: #79c0ff; }
+.preview-wrap .yaml-val { color: #a5d6ff; }
+.preview-wrap .yaml-str { color: #ce9178; }
+.preview-wrap .yaml-bool { color: #4ec9b0; }
+.preview-wrap .yaml-num { color: #b5cea8; }
+.preview-wrap .yaml-comment { color: #6a737d; }
+
+/* Bottom Bar */
+.bottombar { padding:8px 16px; background: var(--surface); border-top:1px solid var(--border); font-size:11px; color: var(--text3); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.bottombar .status-dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px; }
+.bottombar .status-dot.ok { background: var(--green); }
+
+/* Toast */
+.toast { position:fixed; bottom:50px; right:20px; padding:12px 20px; border-radius:var(--radius); font-size:13px; font-weight:500; z-index:100; opacity:0; transform:translateY(10px); transition:all 0.3s ease; pointer-events:none; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.success { background: #1a3a1f; color: var(--green); border:1px solid #2d5a32; }
+.toast.error { background: #3a1a1a; color: var(--red); border:1px solid #5a2d2d; }
+.toast.info { background: #1a2a3a; color: var(--blue); border:1px solid #2d4a5a; }
+
+/* Empty state */
+.empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color: var(--text3); text-align:center; padding:40px; }
+.empty-state .icon { font-size:48px; margin-bottom:16px; opacity:0.4; }
+.empty-state p { font-size:13px; max-width:220px; line-height:1.5; }
+
+/* Modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:50; display:flex; align-items:center; justify-content:center; }
+.modal { background: var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; min-width:380px; max-width:500px; box-shadow:var(--shadow); }
+.modal h3 { font-size:15px; margin-bottom:16px; }
+.modal .btn-row { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+</style>
+</head>
+<body>
+
+<!-- Suite Bar -->
+<div class="suitebar">
+  <span class="label">方案</span>
+  <select id="suiteSelector" onchange="switchSuite(this.value)"></select>
+  <button class="btn-sm create" onclick="createSuite()">+ 新建</button>
+  <button class="btn-sm" onclick="renameSuite()">重命名</button>
+  <button class="btn-sm" onclick="copySuite()">复制</button>
+  <button class="btn-sm danger-sm" onclick="deleteSuite()">删除</button>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="logo"><span class="icon">⚡</span> Hermes Agents</div>
+  <button class="btn accent" onclick="agentNew()" title="新建 Agent">+ 新建</button>
+  <div class="sep"></div>
+  <button class="btn" onclick="importPresets()" title="加载内置的预设方案">📦 加载预设</button>
+  <div class="sep"></div>
+  <button class="btn green" onclick="exportCurrent()" title="导出当前 Agent 为 .md 文件">⬇ 导出当前</button>
+  <button class="btn green" onclick="exportAll()" title="将当前方案写入 suites/ 目录">⬇ 导出到 suites/</button>
+  <div class="sep"></div>
+  <button class="btn teal" onclick="importToOpenCode()" title="选择 hermes-agents 项目根目录，写入 suites/ 和 .opencode/agents/">写入 suites & OpenCode</button>
+  <div class="sep"></div>
+  <button class="btn" onclick="verifySuites()" title="从 suites/ 目录加载并检查配置一致性">验证 suites</button>
+  <button class="btn" onclick="loadFromSuites()" title="从 suites/ 目录读取 Agent 配置到工具">从 suites 加载</button>
+  <div class="sep"></div>
+  <button class="btn teal" onclick="exportSuiteJson()" title="导出当前方案为 JSON 文件，可分享给他人">📤 导出方案</button>
+  <button class="btn teal" onclick="importSuiteJson()" title="从 JSON 文件导入方案配置">📥 导入方案</button>
+  <div class="sep"></div>
+  <button class="btn danger" onclick="clearAll()" title="清空当前方案的所有 Agent">清空当前方案</button>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Left: Agent List -->
+  <div class="left panel">
+    <div class="left-header">
+      <span>Agent 列表</span>
+      <span class="count" id="agentCount">0 个</span>
+    </div>
+    <div class="agent-list" id="agentList">
+      <div class="empty-state">
+        <div class="icon">🤖</div>
+        <p>还没有 Agent<br>点击「+ 新建」或「加载预设」</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: Config Form -->
+  <div class="center panel" id="formArea">
+    <div class="empty-state" id="emptyForm">
+      <div class="icon">📝</div>
+      <p>选择或创建一个 Agent 开始配置</p>
+    </div>
+    <div id="agentForm" style="display:none">
+      <h3>基本信息</h3>
+      <div class="form-grid cols3">
+        <div class="form-group">
+          <label>Agent 名称</label>
+          <input type="text" id="cfgName" placeholder="例如: my-agent" oninput="debouncedFieldChange()">
+          <span class="hint">文件名，不含 .md 扩展名</span>
+        </div>
+        <div class="form-group">
+          <label>模式 (Mode)</label>
+          <select id="cfgMode" onchange="onFieldChange()">
+            <option value="primary">primary — 主代理</option>
+            <option value="subagent">subagent — 子代理</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>颜色</label>
+          <div class="color-row">
+            <input type="color" id="cfgColor" oninput="onFieldChange()" value="#6c7bff">
+            <span class="color-hex" id="cfgColorHex">#6c7bff</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-grid" style="margin-top:14px">
+        <div class="form-group full">
+          <label>描述 (Description)</label>
+          <input type="text" id="cfgDesc" placeholder="简要描述 Agent 的功能和使用场景" oninput="debouncedFieldChange()">
+        </div>
+      </div>
+      <div class="form-grid cols3" style="margin-top:14px">
+        <div class="form-group">
+          <label>模型 (Model)</label>
+          <select id="cfgModel" onchange="onFieldChange()">
+            <option value="opencode/gpt-5.1-codex">opencode/gpt-5.1-codex</option>
+            <option value="anthropic/claude-sonnet-4-20250514">anthropic/claude-sonnet-4</option>
+            <option value="anthropic/claude-haiku-4-20250514">anthropic/claude-haiku-4</option>
+            <option value="anthropic/claude-opus-4-20250514">anthropic/claude-opus-4</option>
+            <option value="openai/gpt-4o">openai/gpt-4o</option>
+            <option value="openai/gpt-4o-mini">openai/gpt-4o-mini</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>温度 (Temperature)</label>
+          <input type="number" id="cfgTemp" value="0.2" min="0" max="1" step="0.05" oninput="onFieldChange()">
+          <span class="hint">0.0=确定性, 1.0=创造性</span>
+        </div>
+        <div class="form-group">
+          <label>最大迭代 (max_iterations)</label>
+          <input type="number" id="cfgMaxIter" value="15" min="1" max="100" oninput="onFieldChange()">
+        </div>
+      </div>
+      <div class="form-grid" style="margin-top:14px">
+        <div class="form-group full">
+          <label>
+            <input type="checkbox" id="cfgHidden" onchange="onFieldChange()" style="margin-right:6px;accent-color:var(--accent)">
+            隐藏代理 (hidden: true)
+          </label>
+          <span class="hint">隐藏后不在 @ 自动补全菜单中出现，仅可通过 Task 工具调用</span>
+        </div>
+      </div>
+
+      <h3>系统提示词 (System Prompt)</h3>
+      <div class="form-grid">
+        <div class="form-group full">
+          <textarea id="cfgPrompt" placeholder="编写 Agent 的系统提示词..." oninput="debouncedFieldChange()"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Tools + Preview -->
+  <div class="right panel" id="rightPanel">
+    <div class="right-section">
+      <h4>🔧 工具 / 技能</h4>
+      <div class="tools-grid" id="toolsGrid"></div>
+    </div>
+    <div class="right-section">
+      <h4>🔐 权限配置</h4>
+      <div class="perms-row">
+        <div class="perm-group">
+          <label>Edit</label>
+          <select id="permEdit" onchange="onFieldChange()">
+            <option value="deny">deny</option>
+            <option value="ask">ask</option>
+            <option value="allow">allow</option>
+          </select>
+        </div>
+        <div class="perm-group">
+          <label>Bash</label>
+          <select id="permBash" onchange="onFieldChange()">
+            <option value="deny">deny</option>
+            <option value="ask">ask</option>
+            <option value="allow">allow</option>
+          </select>
+        </div>
+        <div class="perm-group">
+          <label>WebFetch</label>
+          <select id="permWebfetch" onchange="onFieldChange()">
+            <option value="deny">deny</option>
+            <option value="ask">ask</option>
+            <option value="allow">allow</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="right-section">
+      <h4>📄 实时预览 (Markdown)</h4>
+      <div class="preview-wrap" id="previewContent">
+        <span style="color:var(--text3)">选择一个 Agent 查看预览</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div class="bottombar">
+  <div><span class="status-dot ok"></span>就绪</div>
+  <div id="statusMsg">等待操作</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Confirm Modal placeholder -->
+<div id="modalContainer"></div>
+
+<script>
+// =========== TOOL DEFINITIONS ===========
+const ALL_TOOLS = [
+  { key:'read',       icon:'📖', label:'read',       desc:'读取文件内容' },
+  { key:'write',      icon:'✏️', label:'write',      desc:'创建新文件' },
+  { key:'edit',       icon:'📝', label:'edit',       desc:'编辑已有文件' },
+  { key:'bash',       icon:'💻', label:'bash',       desc:'执行 Shell 命令' },
+  { key:'list',       icon:'📂', label:'list',       desc:'列出目录内容' },
+  { key:'grep',       icon:'🔍', label:'grep',       desc:'代码内容搜索' },
+  { key:'glob',       icon:'🌐', label:'glob',       desc:'文件名模式匹配' },
+  { key:'todo_write', icon:'✅', label:'todo_write', desc:'任务清单管理' },
+  { key:'task',       icon:'🚀', label:'task',       desc:'调用子代理' },
+  { key:'web_search', icon:'🌍', label:'web_search', desc:'联网搜索' },
+  { key:'web_fetch',  icon:'📥', label:'web_fetch',  desc:'获取网页内容' },
+  { key:'webfetch',   icon:'🔗', label:'webfetch',   desc:'网页抓取(旧)' },
+];
+
+// =========== PRESET DATA ===========
+// Suite name → folder name mapping (for suites/ directory)
+const SUITE_FOLDER_MAP = {
+  'hermes-fullstack': 'hermes-fullstack',
+  'lite-review': 'lite-review',
+  'doc-writer': 'doc-writer',
+  'mini-runner': 'mini-runner',
+};
+function getSuiteFolder(name) { return SUITE_FOLDER_MAP[name] || name.replace(/[^a-z0-9-]/gi, '-').toLowerCase(); }
+
+const SUITE_PRESETS = {
+  'hermes-fullstack': { label: 'Hermes 全栈开发套件', agents: [
+    { name:'hermes', mode:'primary', color:'#D4A017', temp:0.2, maxIter:30, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Hermes - 多 Agent 协作框架的总调度指挥官。分析用户需求、拆解任务、调度子代理并整合结果。',
+      prompt:`# Hermes — 多 Agent 协作总调度官
+
+## 角色定位
+你是 **Hermes**，多 Agent 协作框架（Hermes Agents）的总调度指挥官与路由中枢。
+你的职责不是亲自干活，而是像一位资深技术主管那样：理解用户意图、拆解复杂任务、将子任务精准分派给最合适的专业子代理（Sub Agent），并将各子代理的产出整合为统一、连贯的最终结果交付给用户。
+
+## 核心能力
+### 1. 需求理解与意图分析
+### 2. 任务拆解与规划
+### 3. 子代理调度（通过 Task 工具）
+### 4. 结果整合与交付
+
+## 调度决策
+| 用户意图 | 优先派发 | 可能需要协助 |
+|---------|---------|------------|
+| "帮我找到 XXX 文件/代码" | Scout | — |
+| "设计 XXX 系统架构" | Architect | Researcher |
+| "写一个 XXX 功能" | Coder | Scout |
+| "重构 XXX 模块" | Coder | Scout → Reviewer |
+| "审查 XXX 代码" | Reviewer | Scout |
+| "跑 XXX 脚本" | ShellRunner | — |
+| "调研 XXX 技术" | Researcher | — |
+
+## 约束
+- 本人不写代码、不执行命令、不修改文件
+- 价值在于调度智慧：选择正确代理、执行顺序、任务拆分粒度`,
+    tools:{ task:true, read:true, list:true, grep:true, glob:true, todo_write:true },
+    perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+  },
+  { name:'scout', mode:'subagent', color:'#2E86C1', temp:0.0, maxIter:10, model:'opencode/gpt-5.1-codex', hidden:false,
+    desc:'Scout - 代码探索专家。快速搜索代码库、查找文件、搜索关键字、回答代码库相关问题。只读。',
+    prompt:`# Scout — 代码探索专家
+
+## 角色定位
+你是 **Scout**，团队中的侦察兵和导航员。你的唯一使命是：以最快的速度、最高的精度探索代码库，找到用户需要的信息。
+你不对代码做任何修改，不执行任何命令，不访问互联网。
+
+## 技能清单
+### 核心技能
+1. **文件定位（list + glob）** — 按文件名模式查找文件，浏览目录结构
+2. **代码搜索（grep）** — 按关键字搜索代码内容，正则表达式精确匹配
+3. **代码阅读（read）** — 阅读指定文件内容，追踪引用链
+4. **项目结构分析** — 理解技术栈、识别关键模块和依赖关系
+
+### 进阶能力
+- 依赖关系追踪、接口发现、配置解析、测试定位
+
+## 约束
+- 绝不修改任何文件
+- 绝不执行命令
+- 绝不联网
+- 搜索结果为空时明确告知，并建议替代策略`,
+    tools:{ read:true, list:true, grep:true, glob:true },
+    perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+  },
+  { name:'architect', mode:'subagent', color:'#8E44AD', temp:0.3, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
+    desc:'Architect - 架构设计与技术方案专家。分析需求、设计系统架构、输出方案文档。只读。',
+    prompt:`# Architect — 架构设计与技术方案专家
+
+## 角色定位
+你是 **Architect**，团队中的架构师。你负责将模糊的需求转化为清晰、可行的技术方案。
+你的产出是设计文档和方案，而非代码实现。
+
+## 技能清单
+### 核心技能
+1. **需求分析** — 提取功能和非功能需求，识别模糊点和矛盾
+2. **系统架构设计** — 分层架构、模块划分、接口定义、数据流设计
+3. **技术选型** — 对比候选方案，基于项目约束做出推荐
+4. **方案文档输出** — 结构化架构设计文档（ADR）
+5. **现有系统分析** — 阅读现有代码，识别技术债务
+
+## 约束
+- 不写代码，产出是设计文档
+- 不执行命令
+- 所有设计决策必须有理由`,
+    tools:{ read:true, list:true, grep:true, glob:true, web_search:true, web_fetch:true },
+    perms:{ edit:'deny', bash:'deny', webfetch:'allow' }
+  },
+  { name:'coder', mode:'subagent', color:'#27AE60', temp:0.2, maxIter:25, model:'opencode/gpt-5.1-codex', hidden:false,
+    desc:'Coder - 代码编写与重构专家。实际编写代码、修改文件、运行测试。',
+    prompt:`# Coder — 代码编写与重构专家
+
+## 角色定位
+你是 **Coder**，团队中的主力工程师。你的职责是把需求和设计方案变成高质量、可运行的代码。
+你是团队中唯一有写权限的成员，对代码质量负有最终责任。
+
+## 技能清单
+### 编程技能
+1. **代码编写** — 从零创建模块、增量添加功能
+2. **代码重构** — 安全重构，改善可读性和可维护性
+3. **多语言能力** — TS/JS/Python/Go/Rust/Java/SQL/Shell
+
+### 工程技能
+4. **测试编写** — 单元测试、集成测试、TDD
+5. **命令执行** — 构建、测试、lint、依赖安装、Git 操作
+6. **代码阅读** — 修改前先理解现有逻辑
+
+## 编码原则
+- 最小修改原则、一致性优先、向后兼容、可测试性、可读性 > 巧妙性
+
+## 约束
+- 先读后写，运行测试后再交付
+- 不做架构决策、不做代码审查`,
+    tools:{ read:true, write:true, edit:true, list:true, grep:true, glob:true, bash:true, todo_write:true },
+    perms:{ edit:'ask', bash:'ask', webfetch:'deny' }
+  },
+  { name:'reviewer', mode:'subagent', color:'#E74C3C', temp:0.1, maxIter:12, model:'opencode/gpt-5.1-codex', hidden:false,
+    desc:'Reviewer - 代码审查专家。审查代码质量、安全漏洞、性能问题、可维护性。只读。',
+    prompt:`# Reviewer — 代码审查专家
+
+## 角色定位
+你是 **Reviewer**，团队中的代码审查员。用挑剔的眼光审视每一行代码，发现潜在的问题、漏洞和改进空间。
+只做审查不写代码，输出审查报告。
+
+## 审查维度
+1. **代码质量** — 结构、命名、职责单一、重复代码、注释
+2. **安全审查** — 注入漏洞、敏感信息暴露、认证授权、输入验证
+3. **性能分析** — 循环优化、数据库查询、内存使用、异步操作
+4. **可维护性** — 可读性、测试覆盖、错误处理、日志记录
+5. **错误处理** — 异常捕获、边界条件、错误信息
+6. **兼容性** — API 兼容、环境差异、依赖版本
+
+## 问题级别
+| 级别 | 含义 | 响应 |
+|------|------|------|
+| P0 CRITICAL | 安全漏洞、数据丢失 | 必须立即修复 |
+| P1 MAJOR | 功能缺陷、严重性能 | 合并前修复 |
+| P2 MINOR | 代码质量、风格 | 建议修复 |
+| P3 SUGGESTION | 改进建议 | 可选采纳 |
+
+## 约束
+- 只审查不修改，建设性优先`,
+    tools:{ read:true, list:true, grep:true, glob:true, web_search:true },
+    perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+  },
+  { name:'shellrunner', mode:'subagent', color:'#E67E22', temp:0.1, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
+    desc:'ShellRunner - 命令行与脚本执行专家。执行 shell 命令、运行脚本、管理环境。',
+    prompt:`# ShellRunner — 命令行与脚本执行专家
+
+## 角色定位
+你是 **ShellRunner**，团队中的运维和命令行专家。执行系统命令、运行脚本、管理环境、排查系统问题。
+
+## 技能清单
+### 核心技能
+1. **命令执行** — 运行任意 shell 命令，管道/重定向/批量操作
+2. **脚本编写与运行** — Shell 脚本、Makefile、npm scripts、Python 脚本
+3. **环境管理** — 软件包安装/更新/卸载、环境变量、虚拟环境
+4. **文件操作** — 创建/复制/移动/删除、权限管理、压缩/解压
+5. **进程管理** — 查看进程、启停服务、端口检查、网络诊断
+6. **Git 操作** — clone/pull/push/commit/branch/merge
+
+## 安全原则
+1. 危险命令提前告知
+2. 先预览再执行
+3. 避开保护路径
+4. 可逆优先（trash > rm -rf）
+
+## 约束
+- 不修改代码文件（无 edit 权限）
+- 安全命令优先，如实报告`,
+    tools:{ bash:true, read:true, list:true },
+    perms:{ edit:'deny', bash:'ask', webfetch:'deny' }
+  },
+  { name:'researcher', mode:'subagent', color:'#17A589', temp:0.3, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
+    desc:'Researcher - 深度调研与信息检索专家。联网搜索、阅读文档、总结分析。只读。',
+    prompt:`# Researcher — 深度调研与信息检索专家
+
+## 角色定位
+你是 **Researcher**，团队中的研究员。获取外部信息、阅读本地文档、整合分析总结，输出高质量研究报告。
+
+## 技能清单
+### 核心技能
+1. **联网搜索（web_search）** — 精准搜索、多轮递进、跨语言
+2. **网页内容获取（web_fetch）** — 抓取全文、提取关键信息
+3. **文档阅读（read）** — 本地文档、配置文件
+4. **信息整合与分析** — 多源交叉验证、提取要点、标注冲突
+
+### 调研场景
+| 场景 | 方法 |
+|------|------|
+| 技术选型 | 搜索方案 → 阅读文档 → 对比特性 |
+| Bug 追踪 | 搜索错误 → GitHub Issues → 社区讨论 |
+| 最佳实践 | 搜索权威来源 → 阅读指南 → 总结模式 |
+| 竞品分析 | 搜索竞品文档 → 对比功能 → 输出矩阵 |
+
+## 约束
+- 所有结论必须有来源支撑
+- 区别事实与观点
+- 标注时效性`,
+    tools:{ web_search:true, web_fetch:true, read:true },
+    perms:{ edit:'deny', bash:'deny', webfetch:'allow' }
+  }]
+  },
+  'lite-review': { label: '轻量审查套件', agents: [
+    { name:'hermes-lite', mode:'primary', color:'#3498DB', temp:0.2, maxIter:20, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Hermes-Lite - 轻量审查套件的调度官。负责代码探索和审查任务的协调。',
+      prompt:'# Hermes-Lite — 轻量审查调度官\n\n## 角色定位\n你是 Hermes-Lite，轻量审查套件的总调度官。专注于代码探索和审查任务。\n\n## 调度决策\n| 用户意图 | 优先派发 |\n|---------|--------|\n| 查找文件/代码 | Scout |\n| 审查代码 | Reviewer |\n| 探索+审查 | Scout → Reviewer |\n\n## 约束\n- 不写代码、不执行命令、不修改文件',
+      tools:{ task:true, read:true, list:true, todo_write:true },
+      perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+    },
+    { name:'scout', mode:'subagent', color:'#2E86C1', temp:0.0, maxIter:10, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Scout - 代码探索专家。快速搜索代码库、查找文件。只读。',
+      prompt:'# Scout — 代码探索专家\n\n快速搜索代码库，查找文件和关键字。只读，不修改文件。',
+      tools:{ read:true, list:true, grep:true, glob:true },
+      perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+    },
+    { name:'reviewer', mode:'subagent', color:'#E74C3C', temp:0.1, maxIter:12, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Reviewer - 代码审查专家。审查代码质量、安全漏洞、性能问题。只读。',
+      prompt:'# Reviewer — 代码审查专家\n\n审查代码质量、安全漏洞、性能问题。只做审查不写代码。',
+      tools:{ read:true, list:true, grep:true, glob:true },
+      perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+    }
+  ]},
+  'doc-writer': { label: '文档写作套件', agents: [
+    { name:'hermes-doc', mode:'primary', color:'#1ABC9C', temp:0.3, maxIter:20, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Hermes-Doc - 文档写作套件的调度官。负责调研和文档写作任务协调。',
+      prompt:'# Hermes-Doc — 文档写作调度官\n\n## 角色定位\n你是 Hermes-Doc，文档写作套件的总调度官。专注于技术调研和文档写作任务。\n\n## 调度决策\n| 用户意图 | 优先派发 |\n|---------|--------|\n| 技术调研 | Researcher |\n| 文档审查 | Reviewer |\n| 调研+审查 | Researcher → Reviewer |\n\n## 约束\n- 不写代码、不执行命令、不修改文件',
+      tools:{ task:true, read:true, list:true, todo_write:true },
+      perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+    },
+    { name:'researcher', mode:'subagent', color:'#17A589', temp:0.3, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Researcher - 深度调研与信息检索专家。联网搜索、阅读文档、总结分析。只读。',
+      prompt:'# Researcher — 深度调研与信息检索专家\n\n获取外部信息、阅读本地文档、整合分析总结，输出高质量研究报告。',
+      tools:{ web_search:true, web_fetch:true, read:true },
+      perms:{ edit:'deny', bash:'deny', webfetch:'allow' }
+    },
+    { name:'reviewer', mode:'subagent', color:'#E74C3C', temp:0.1, maxIter:12, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Reviewer - 文档审查专家。审查文档结构和内容。只读。',
+      prompt:'# Reviewer — 文档审查专家\n\n审查文档质量、结构和内容准确性。只做审查不写内容。',
+      tools:{ read:true, list:true },
+      perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+    }
+  ]},
+  'mini-runner': { label: '极简执行套件', agents: [
+    { name:'hermes-mini', mode:'primary', color:'#F39C12', temp:0.1, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Hermes-Mini - 极简执行套件的调度官。快速分派编码和命令执行任务。',
+      prompt:'# Hermes-Mini — 极简执行调度官\n\n## 角色定位\n你是 Hermes-Mini，极简执行套件的总调度官。专注于快速编码和命令执行。\n\n## 调度决策\n| 用户意图 | 优先派发 |\n|---------|--------|\n| 编写代码 | Coder |\n| 执行命令/脚本 | ShellRunner |\n| 编码+运行 | Coder → ShellRunner |\n\n## 约束\n- 不亲自写代码、不执行命令',
+      tools:{ task:true, read:true, list:true, todo_write:true },
+      perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+    },
+    { name:'coder', mode:'subagent', color:'#27AE60', temp:0.2, maxIter:25, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'Coder - 代码编写与重构专家。实际编写代码、修改文件。',
+      prompt:'# Coder — 代码编写与重构专家\n\n编写高质量、可运行的代码。先读后写，最小修改原则。',
+      tools:{ read:true, write:true, edit:true, list:true, grep:true, glob:true, bash:true, todo_write:true },
+      perms:{ edit:'ask', bash:'ask', webfetch:'deny' }
+    },
+    { name:'shellrunner', mode:'subagent', color:'#E67E22', temp:0.1, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
+      desc:'ShellRunner - 命令行与脚本执行专家。执行 shell 命令、运行脚本。',
+      prompt:'# ShellRunner — 命令行与脚本执行专家\n\n执行系统命令、运行脚本、管理环境。可逆优先，如实报告。',
+      tools:{ bash:true, read:true, list:true },
+      perms:{ edit:'deny', bash:'ask', webfetch:'deny' }
+    }
+  ]}
+};
+
+// =========== UTILITY ===========
+
+function debounce(fn, delay) {
+  let timer = null;
+  const debounced = function(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+  debounced.cancel = function() { clearTimeout(timer); timer = null; };
+  return debounced;
+}
+
+// =========== STATE ===========
+let suites = {};
+let activeSuite = null;
+let currentAgent = null;
+function A() { return suites[activeSuite]?.agents || {}; }
+
+// Debounced version of onFieldChange for heavy inputs
+const debouncedFieldChange = debounce(onFieldChange, 200);
+
+// For verifySuites()
+const REQUIRED_FIELDS = ['description', 'model', 'mode', 'color', 'temperature', 'max_iterations'];
+const VALID_MODES = new Set(['primary', 'subagent']);
+function parseFrontmatter(text) {
+  const match = text.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!match) return {};
+  const result = {};
+  const yamlStr = match[1];
+  for (const line of yamlStr.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const idx = trimmed.indexOf(':');
+    if (idx === -1) continue;
+    const key = trimmed.substring(0, idx).trim();
+    let value = trimmed.substring(idx + 1).trim().replace(/^["']|["']$/g, '');
+    if (value === 'true') value = true;
+    else if (value === 'false') value = false;
+    else if (/^-?\d+(\.\d+)?$/.test(value)) value = parseFloat(value);
+    result[key] = value;
+  }
+  return result;
+}
+
+// =========== INIT ===========
+function init() {
+  buildToolsGrid();
+  loadFromStorage();
+  renderSuiteSelector();
+  renderAgentList();
+  const ags = A();
+  if (Object.keys(ags).length === 0) {
+    document.getElementById('agentList').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🤖</div>
+        <p>还没有 Agent<br>点击「+ 新建」或「加载预设」</p>
+      </div>`;
+  } else {
+    const first = Object.keys(ags)[0];
+    selectAgent(first);
+  }
+  setStatus('就绪');
+}
+
+function buildToolsGrid() {
+  const grid = document.getElementById('toolsGrid');
+  grid.innerHTML = ALL_TOOLS.map(t => `
+    <label class="tool-check" title="${t.desc}">
+      <input type="checkbox" data-tool="${t.key}" onchange="onFieldChange()">
+      <span class="tool-icon">${t.icon}</span>
+      <span class="tool-name">${t.label}</span>
+    </label>
+  `).join('');
+}
+
+// =========== STORAGE ===========
+function saveToStorage() {
+  localStorage.setItem('hermes-agents-config-v2', JSON.stringify({ suites, activeSuite }));
+}
+
+function loadFromStorage() {
+  try {
+    const data = JSON.parse(localStorage.getItem('hermes-agents-config-v2'));
+    if (data && data.suites && typeof data.suites === 'object') {
+      suites = data.suites;
+      activeSuite = data.activeSuite;
+    }
+  } catch(e) { suites = {}; activeSuite = null; }
+
+  // Migrate from v1 format
+  if (Object.keys(suites).length === 0) {
+    try {
+      const v1 = JSON.parse(localStorage.getItem('hermes-agents-config'));
+      if (v1 && typeof v1 === 'object' && Object.keys(v1).length > 0) {
+        suites['默认方案'] = { agents: v1 };
+        activeSuite = '默认方案';
+        saveToStorage();
+      }
+    } catch(e) {}
+  }
+
+  // Ensure at least one suite exists
+  if (Object.keys(suites).length === 0) {
+    suites['默认方案'] = { agents: {} };
+    activeSuite = '默认方案';
+    saveToStorage();
+  }
+  if (!activeSuite || !suites[activeSuite]) {
+    activeSuite = Object.keys(suites)[0];
+  }
+}
+
+// =========== RENDER ===========
+function renderAgentList() {
+  const ags = A();
+  const keys = Object.keys(ags);
+  document.getElementById('agentCount').textContent = keys.length + ' 个';
+
+  if (keys.length === 0) {
+    document.getElementById('agentList').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🤖</div>
+        <p>还没有 Agent<br>点击「+ 新建」或「加载预设」</p>
+      </div>`;
+    document.getElementById('agentForm').style.display = 'none';
+    document.getElementById('emptyForm').style.display = 'flex';
+    document.getElementById('previewContent').innerHTML = '<span style="color:var(--text3)">选择一个 Agent 查看预览</span>';
+    return;
+  }
+
+  document.getElementById('agentList').innerHTML = keys.map(k => {
+    const a = ags[k];
+    const modeLabel = a.mode === 'primary' ? '主代理' : '子代理';
+    const badgeClass = a.mode === 'primary' ? 'primary' : 'sub';
+    return `
+    <div class="agent-item ${currentAgent === k ? 'active' : ''}" onclick="selectAgent('${k}')">
+      <div class="dot" style="background:${a.color || '#6c7bff'}"></div>
+      <div class="info">
+        <div class="name">${a.name || k}</div>
+        <span class="mode-tag">${modeLabel}</span>
+        ${a.hidden ? '<span class="badge" style="background:#3a1a3a;color:#d47fff">hidden</span>' : ''}
+      </div>
+      <button class="delete-btn" onclick="event.stopPropagation();deleteAgent('${k}')">✕</button>
+    </div>`;
+  }).join('');
+
+  if (currentAgent && !ags[currentAgent]) {
+    currentAgent = keys[0];
+    selectAgent(currentAgent);
+  }
+}
+
+function selectAgent(name) {
+  currentAgent = name;
+  const a = A()[name];
+  if (!a) return;
+
+  document.getElementById('emptyForm').style.display = 'none';
+  document.getElementById('agentForm').style.display = 'block';
+
+  document.getElementById('cfgName').value = a.name || name;
+  document.getElementById('cfgMode').value = a.mode || 'subagent';
+  document.getElementById('cfgColor').value = a.color || '#6c7bff';
+  document.getElementById('cfgColorHex').textContent = a.color || '#6c7bff';
+  document.getElementById('cfgDesc').value = a.desc || '';
+  document.getElementById('cfgModel').value = a.model || 'opencode/gpt-5.1-codex';
+  document.getElementById('cfgTemp').value = a.temp !== undefined ? a.temp : 0.2;
+  document.getElementById('cfgMaxIter').value = a.maxIter || 15;
+  document.getElementById('cfgHidden').checked = a.hidden || false;
+  document.getElementById('cfgPrompt').value = a.prompt || '';
+
+  // Tools
+  const toolChecks = document.querySelectorAll('#toolsGrid input[type="checkbox"]');
+  toolChecks.forEach(cb => {
+    cb.checked = a.tools && a.tools[cb.dataset.tool] === true;
+  });
+
+  // Permissions
+  document.getElementById('permEdit').value = (a.perms && a.perms.edit) || 'deny';
+  document.getElementById('permBash').value = (a.perms && a.perms.bash) || 'deny';
+  document.getElementById('permWebfetch').value = (a.perms && a.perms.webfetch) || 'deny';
+
+  renderAgentList();
+  updatePreview();
+}
+
+// =========== DATA COLLECTION ===========
+function collectAgentData(fromForm) {
+  const name = fromForm ? document.getElementById('cfgName').value.trim() : '';
+  if (fromForm && !name) return null;
+
+  const toolChecks = document.querySelectorAll('#toolsGrid input[type="checkbox"]');
+  const tools = {};
+  toolChecks.forEach(cb => { tools[cb.dataset.tool] = cb.checked; });
+
+  return {
+    name: fromForm ? name : (currentAgent || ''),
+    mode: fromForm ? document.getElementById('cfgMode').value : (A()[currentAgent]?.mode || 'subagent'),
+    color: fromForm ? document.getElementById('cfgColor').value : (A()[currentAgent]?.color || '#6c7bff'),
+    desc: fromForm ? document.getElementById('cfgDesc').value : (A()[currentAgent]?.desc || ''),
+    model: fromForm ? document.getElementById('cfgModel').value : (A()[currentAgent]?.model || 'opencode/gpt-5.1-codex'),
+    temp: fromForm ? parseFloat(document.getElementById('cfgTemp').value) : (A()[currentAgent]?.temp || 0.2),
+    maxIter: fromForm ? parseInt(document.getElementById('cfgMaxIter').value) : (A()[currentAgent]?.maxIter || 15),
+    hidden: fromForm ? document.getElementById('cfgHidden').checked : (A()[currentAgent]?.hidden || false),
+    prompt: fromForm ? document.getElementById('cfgPrompt').value : (A()[currentAgent]?.prompt || ''),
+    tools,
+    perms: {
+      edit: fromForm ? document.getElementById('permEdit').value : (A()[currentAgent]?.perms?.edit || 'deny'),
+      bash: fromForm ? document.getElementById('permBash').value : (A()[currentAgent]?.perms?.bash || 'deny'),
+      webfetch: fromForm ? document.getElementById('permWebfetch').value : (A()[currentAgent]?.perms?.webfetch || 'deny'),
+    }
+  };
+}
+
+function onFieldChange() {
+  if (!currentAgent) return;
+  const data = collectAgentData(true);
+  if (!data) return;
+
+  const oldName = currentAgent;
+  const ags = A();
+  ags[data.name] = data;
+  if (oldName !== data.name) {
+    delete ags[oldName];
+    currentAgent = data.name;
+  }
+  saveToStorage();
+  renderAgentList();
+  updatePreview();
+  setStatus('已保存: ' + data.name + '.md');
+}
+
+function updatePreview() {
+  if (!currentAgent || !A()[currentAgent]) {
+    document.getElementById('previewContent').innerHTML = '<span style="color:var(--text3)">选择一个 Agent 查看预览</span>';
+    return;
+  }
+  const a = A()[currentAgent];
+  const md = generateMarkdown(a);
+  document.getElementById('previewContent').innerHTML = highlightYAML(md);
+}
+
+// =========== MARKDOWN GENERATION ===========
+function generateMarkdown(a) {
+  const enabledTools = Object.entries(a.tools).filter(([_,v]) => v).map(([k]) => k);
+  let lines = [];
+  lines.push('---');
+  lines.push(`description: ${a.desc || ''}`);
+  lines.push(`model: ${a.model || 'opencode/gpt-5.1-codex'}`);
+  lines.push(`mode: ${a.mode || 'subagent'}`);
+  if (a.color) lines.push(`color: "${a.color}"`);
+  if (a.temp !== undefined) lines.push(`temperature: ${a.temp}`);
+  if (a.maxIter) lines.push(`max_iterations: ${a.maxIter}`);
+  if (a.hidden) lines.push('hidden: true');
+
+  if (enabledTools.length > 0) {
+    lines.push('tools:');
+    enabledTools.forEach(t => lines.push(`  ${t}: true`));
+  }
+
+  const perms = a.perms || {};
+  lines.push('permissions:');
+  lines.push(`  edit: ${perms.edit || 'deny'}`);
+  lines.push(`  bash: ${perms.bash || 'deny'}`);
+  lines.push(`  webfetch: ${perms.webfetch || 'deny'}`);
+
+  lines.push('---');
+  lines.push('');
+  if (a.prompt) lines.push(a.prompt);
+
+  return lines.join('\n');
+}
+
+function highlightYAML(md) {
+  let html = '';
+  const lines = md.split('\n');
+  let inFrontmatter = false;
+  let afterFrontmatter = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (i === 0 && line === '---') { inFrontmatter = true; html += '<span style="color:var(--text3)">---</span>\n'; continue; }
+    if (inFrontmatter && line === '---') { inFrontmatter = false; afterFrontmatter = true; html += '<span style="color:var(--text3)">---</span>\n\n'; continue; }
+
+    if (inFrontmatter) {
+      const m = line.match(/^(\s*)([a-zA-Z_]+):(\s*)(.*)$/);
+      if (m) {
+        const indent = m[1];
+        const key = m[2];
+        const sp = m[3];
+        const val = m[4];
+        let valHtml;
+        if (val === 'true') valHtml = '<span class="yaml-bool">true</span>';
+        else if (val === 'false') valHtml = '<span class="yaml-bool">false</span>';
+        else if (/^\d+(\.\d+)?$/.test(val)) valHtml = '<span class="yaml-num">' + val + '</span>';
+        else if (val.startsWith('"') && val.endsWith('"')) valHtml = '<span class="yaml-str">' + val + '</span>';
+        else valHtml = '<span class="yaml-val">' + val + '</span>';
+        html += indent + '<span class="yaml-key">' + key + ':</span>' + sp + valHtml + '\n';
+      } else {
+        html += '<span style="color:var(--text2)">' + escapeHtml(line) + '</span>\n';
+      }
+    } else if (afterFrontmatter) {
+      html += '<span style="color:var(--text2)">' + escapeHtml(line) + '</span>\n';
+    }
+  }
+  return html;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// =========== ACTIONS ===========
+function agentNew() {
+  const baseName = 'new-agent';
+  let name = baseName;
+  let i = 1;
+  const ags = A();
+  while (ags[name]) { name = baseName + '-' + (i++); }
+
+  ags[name] = {
+    name, mode:'subagent', color:'#6c7bff', temp:0.2, maxIter:15,
+    model:'opencode/gpt-5.1-codex', hidden:false, desc:'', prompt:'',
+    tools:{ read:true, list:true },
+    perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+  };
+  saveToStorage();
+  renderAgentList();
+  selectAgent(name);
+  setStatus('已创建: ' + name);
+  toast('已创建新 Agent: ' + name, 'success');
+}
+
+function deleteAgent(name) {
+  const ags = A();
+  if (!ags[name]) return;
+  showConfirm(`确认删除 Agent「${name}」吗？此操作不可撤销。`, () => {
+    delete ags[name];
+    if (currentAgent === name) {
+      const keys = Object.keys(ags);
+      currentAgent = keys.length > 0 ? keys[0] : null;
+      if (currentAgent) selectAgent(currentAgent);
+      else {
+        document.getElementById('agentForm').style.display = 'none';
+        document.getElementById('emptyForm').style.display = 'flex';
+        document.getElementById('previewContent').innerHTML = '<span style="color:var(--text3)">选择一个 Agent 查看预览</span>';
+      }
+    }
+    saveToStorage();
+    renderAgentList();
+    setStatus('已删除: ' + name);
+    toast('已删除 Agent: ' + name, 'info');
+  });
+}
+
+function importPresets() {
+  const suiteNames = Object.keys(SUITE_PRESETS);
+  if (suiteNames.length === 0) return;
+
+  // Ask user which preset suite to load
+  const options = suiteNames.map(name => {
+    const preset = SUITE_PRESETS[name];
+    const agentCount = preset.agents ? preset.agents.length : 0;
+    return {
+      label: (preset.label || name) + ' (' + agentCount + ' 个 Agent)',
+      description: preset.agents ? preset.agents.map(a => a.name).join('、') : ''
+    };
+  });
+  options.push({ label: '不符合预期' });
+
+  ask_user_preset(options, suiteNames);
+}
+
+function ask_user_preset(options, suiteNames) {
+  // Use a modal for suite selection
+  const container = document.getElementById('modalContainer');
+  const optionHtml = options.map((o, i) => {
+    if (o.label === '不符合预期') {
+      return `<button class="btn" onclick="closeModal()" style="width:100%;text-align:left;margin-bottom:6px">${o.label}</button>`;
+    }
+    const desc = o.description ? `<div style="font-size:10px;color:var(--text3);margin-top:2px">${o.description}</div>` : '';
+    return `<button class="btn" onclick="loadPresetSuite('${suiteNames[i]}')" style="width:100%;text-align:left;margin-bottom:6px">${o.label}${desc}</button>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <h3>📦 选择预设方案</h3>
+        <p style="color:var(--text2);font-size:12px;margin-bottom:12px">选择一套方案，将替换当前方案中的所有 Agent</p>
+        ${optionHtml}
+      </div>
+    </div>`;
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') closeModal(); };
+}
+
+function loadPresetSuite(suiteName) {
+  closeModal();
+  const preset = SUITE_PRESETS[suiteName];
+  if (!preset || !preset.agents) return;
+
+  const displayName = preset.label || suiteName;
+
+  showConfirm(`将用「${displayName}」替换当前方案「${activeSuite}」中的所有 Agent。确认后同时写入 suites/${getSuiteFolder(suiteName)}/ 目录。`, () => {
+    const ags = A();
+    // Clear current agents
+    for (const k of Object.keys(ags)) { delete ags[k]; }
+    // Load preset agents
+    let count = 0;
+    preset.agents.forEach(p => {
+      ags[p.name] = {
+        name: p.name,
+        mode: p.mode,
+        color: p.color,
+        temp: p.temp,
+        maxIter: p.maxIter,
+        model: p.model,
+        hidden: p.hidden || false,
+        desc: p.desc,
+        prompt: p.prompt,
+        tools: { ...p.tools },
+        perms: { ...p.perms }
+      };
+      count++;
+    });
+    saveToStorage();
+    renderAgentList();
+    const keys = Object.keys(ags);
+    if (keys.length > 0) selectAgent(keys[0]);
+    setStatus('已加载方案: ' + displayName + ' (' + count + ' 个 Agent)');
+    toast('已加载预设方案: ' + displayName, 'success');
+
+    // Try to write to suites/ folder via FSA
+    writeToSuitesFolder(suiteName);
+  });
+}
+
+function exportCurrent() {
+  if (!currentAgent || !A()[currentAgent]) {
+    toast('请先选择一个 Agent', 'error');
+    return;
+  }
+  downloadFile(currentAgent + '.md', generateMarkdown(A()[currentAgent]));
+  setStatus('已导出: ' + currentAgent + '.md');
+  toast('已导出: ' + currentAgent + '.md', 'success');
+}
+
+function exportAll() {
+  const ags = A();
+  const keys = Object.keys(ags);
+  if (keys.length === 0) {
+    toast('当前方案没有可导出的 Agent', 'error');
+    return;
+  }
+
+  // Try FSA first: write to suites/<folder>/.opencode/agents/
+  if (typeof window.showDirectoryPicker === 'function') {
+    writeToSuitesFolder(activeSuite);
+  } else {
+    // Fallback: download files
+    keys.forEach((k, i) => {
+      setTimeout(() => {
+        downloadFile(k + '.md', generateMarkdown(ags[k]));
+      }, i * 100);
+    });
+    setStatus('已导出方案「' + activeSuite + '」的 ' + keys.length + ' 个 Agent');
+    toast('正在下载 ' + keys.length + ' 个文件...', 'success');
+  }
+}
+
+function clearAll() {
+  const ags = A();
+  if (Object.keys(ags).length === 0) {
+    toast('当前方案没有可清空的 Agent', 'info');
+    return;
+  }
+  showConfirm('确认清空当前方案「' + activeSuite + '」的所有 Agent 吗？此操作不可撤销。', () => {
+    for (const k of Object.keys(ags)) { delete ags[k]; }
+    currentAgent = null;
+    saveToStorage();
+    renderAgentList();
+    document.getElementById('agentForm').style.display = 'none';
+    document.getElementById('emptyForm').style.display = 'flex';
+    document.getElementById('previewContent').innerHTML = '<span style="color:var(--text3)">选择一个 Agent 查看预览</span>';
+    setStatus('已清空方案「' + activeSuite + '」');
+    toast('已清空当前方案的全部 Agent', 'info');
+  });
+}
+
+// =========== WRITE TO SUITES FOLDER ===========
+async function writeToSuitesFolder(suiteName) {
+  if (typeof window.showDirectoryPicker !== 'function') {
+    // Try download fallback
+    const ags = A();
+    const keys = Object.keys(ags);
+    if (keys.length === 0) return;
+    const folderName = getSuiteFolder(suiteName);
+    keys.forEach((k, i) => {
+      setTimeout(() => {
+        downloadFile(k + '.md', generateMarkdown(ags[k]));
+      }, i * 100);
+    });
+    toast('请将下载的文件放入 suites/' + folderName + '/.opencode/agents/', 'info');
+    return;
+  }
+
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'desktop' });
+    const encoder = new TextEncoder();
+    const ags = A();
+    const keys = Object.keys(ags);
+    if (keys.length === 0) return;
+    const folderName = getSuiteFolder(suiteName);
+
+    // Create suites/<folder>/.opencode/agents/ structure
+    let suitesHandle, folderHandle, opencodeHandle, agentsHandle;
+    try { suitesHandle = await dirHandle.getDirectoryHandle('suites', { create: true }); }
+    catch { toast('无法创建 suites 目录', 'error'); return; }
+    try { folderHandle = await suitesHandle.getDirectoryHandle(folderName, { create: true }); }
+    catch { toast('无法创建方案目录', 'error'); return; }
+    try { opencodeHandle = await folderHandle.getDirectoryHandle('.opencode', { create: true }); }
+    catch { toast('无法创建 .opencode 目录', 'error'); return; }
+    try { agentsHandle = await opencodeHandle.getDirectoryHandle('agents', { create: true }); }
+    catch { toast('无法创建 agents 目录', 'error'); return; }
+
+    let written = 0;
+    for (const key of keys) {
+      const agent = ags[key];
+      const filename = (agent.name || key) + '.md';
+      const content = generateMarkdown(agent);
+      try {
+        let fh;
+        try { fh = await agentsHandle.getFileHandle(filename, { create: false }); }
+        catch { fh = await agentsHandle.getFileHandle(filename, { create: true }); }
+        const w = await fh.createWritable();
+        await w.write(encoder.encode(content));
+        await w.close();
+        written++;
+      } catch(e) { console.error('写入失败:', filename, e); }
+    }
+    toast('已写入 suites/' + folderName + '/ (' + written + ' 个文件)', 'success');
+  } catch(e) {
+    if (e.name !== 'AbortError') toast('写入 suites 失败: ' + e.message, 'error');
+  }
+}
+
+// =========== IMPORT TO OPENCODE ===========
+async function importToOpenCode() {
+  const ags = A();
+  const keys = Object.keys(ags);
+  if (keys.length === 0) {
+    toast('当前方案没有可导入的 Agent，请先创建或加载预设', 'error');
+    return;
+  }
+
+  if (typeof window.showDirectoryPicker !== 'function') {
+    keys.forEach((k, i) => {
+      setTimeout(() => { downloadFile(k + '.md', generateMarkdown(ags[k])); }, i * 100);
+    });
+    toast('已下载 ' + keys.length + ' 个文件，请手动放到 .opencode/agents/ 目录', 'info');
+    return;
+  }
+
+  let dirHandle;
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'desktop' });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    toast('打开目录失败: ' + e.message, 'error');
+    return;
+  }
+
+  // Show progress modal
+  const folderName = getSuiteFolder(activeSuite);
+  const modalId = 'importProgress';
+  const container = document.getElementById('modalContainer');
+  container.innerHTML = `
+    <div class="modal-overlay" id="${modalId}">
+      <div class="modal" style="min-width:420px">
+        <h3>导入中...</h3>
+        <div style="margin:12px 0;font-size:13px;color:var(--text2)">
+          <div>方案: <strong>${escapeHtml(activeSuite)}</strong> (${keys.length} 个 Agent)</div>
+          <div style="margin-top:6px">目标: suites/${escapeHtml(folderName)}/.opencode/agents/</div>
+          <div id="importProgressDetail" style="margin-top:10px;font-size:11px;color:var(--text3)">正在写入...</div>
+          <div id="importProgressBar" style="margin-top:8px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+            <div id="importProgressFill" style="height:100%;background:var(--accent);width:0%;transition:width 0.3s"></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  const updateProgress = (pct, detail) => {
+    const fill = document.getElementById('importProgressFill');
+    const detailEl = document.getElementById('importProgressDetail');
+    if (fill) fill.style.width = pct + '%';
+    if (detailEl) detailEl.textContent = detail;
+  };
+
+  setStatus('正在写入...');
+  const encoder = new TextEncoder();
+  const results = { suites: 0, project: 0, failed: [] };
+  updateProgress(5, '创建目录结构...');
+
+  try {
+    let suitesHandle, folderHandle, opencodeHandle, agentsHandle;
+    try { suitesHandle = await dirHandle.getDirectoryHandle('suites', { create: true }); }
+    catch { results.failed.push('suites 目录创建失败'); throw new Error('suites'); }
+    try { folderHandle = await suitesHandle.getDirectoryHandle(folderName, { create: true }); }
+    catch { results.failed.push('方案目录创建失败'); throw new Error('folder'); }
+    try { opencodeHandle = await folderHandle.getDirectoryHandle('.opencode', { create: true }); }
+    catch { results.failed.push('.opencode 目录创建失败'); throw new Error('opencode'); }
+    try { agentsHandle = await opencodeHandle.getDirectoryHandle('agents', { create: true }); }
+    catch { results.failed.push('agents 目录创建失败'); throw new Error('agents'); }
+
+    let done = 0;
+    for (const key of keys) {
+      const agent = ags[key];
+      const filename = (agent.name || key) + '.md';
+      const content = generateMarkdown(agent);
+      try {
+        let fh;
+        try { fh = await agentsHandle.getFileHandle(filename, { create: false }); }
+        catch { fh = await agentsHandle.getFileHandle(filename, { create: true }); }
+        const w = await fh.createWritable();
+        await w.write(encoder.encode(content));
+        await w.close();
+        results.suites++;
+      } catch(e) { results.failed.push('suites/' + filename + ': ' + e.message); }
+      done++;
+      updateProgress(5 + Math.round(done / keys.length * 40), `写入 suites: ${done}/${keys.length}`);
+    }
+
+    // Also write to .opencode/agents/
+    updateProgress(50, '写入 .opencode/agents/ ...');
+    try {
+      let projOpencode = await dirHandle.getDirectoryHandle('.opencode', { create: true });
+      let projAgents = await projOpencode.getDirectoryHandle('agents', { create: true });
+      let done2 = 0;
+      for (const key of keys) {
+        const agent = ags[key];
+        const filename = (agent.name || key) + '.md';
+        const content = generateMarkdown(agent);
+        try {
+          let fh;
+          try { fh = await projAgents.getFileHandle(filename, { create: false }); }
+          catch { fh = await projAgents.getFileHandle(filename, { create: true }); }
+          const w = await fh.createWritable();
+          await w.write(encoder.encode(content));
+          await w.close();
+          results.project++;
+        } catch(e) { results.failed.push('project/' + filename + ': ' + e.message); }
+        done2++;
+        updateProgress(50 + Math.round(done2 / keys.length * 40), `写入项目: ${done2}/${keys.length}`);
+      }
+      // Update opencode.json
+      updateProgress(95, '更新 opencode.json ...');
+      try { await updateOpencodeJson(projOpencode, keys); } catch(e) {}
+    } catch(e) { /* optional */ }
+  } catch(e) {
+    if (!['suites','folder','opencode','agents'].includes(e.message)) {
+      toast('导入过程中发生错误: ' + e.message, 'error');
+      closeModal();
+      setStatus('导入中断');
+      return;
+    }
+  }
+
+  updateProgress(100, '完成!');
+
+  // Replace modal with results
+  const parts = [];
+  if (results.suites > 0) parts.push('suites/' + folderName + '/.opencode/agents/: ' + results.suites + ' 个文件');
+  if (results.project > 0) parts.push('.opencode/agents/: ' + results.project + ' 个文件');
+
+  const allOk = results.failed.length === 0;
+  container.innerHTML = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal" style="min-width:420px">
+        <h3>${allOk ? '导入完成' : '部分完成'}</h3>
+        <div style="margin:12px 0;font-size:13px;color:var(--text2)">
+          <div>方案: <strong>${escapeHtml(activeSuite)}</strong> (${keys.length} 个 Agent)</div>
+          ${parts.map(p => '<div style="margin-top:4px">' + escapeHtml(p) + '</div>').join('')}
+          ${!allOk ? '<div style="margin-top:8px;color:var(--red);font-size:11px">' + results.failed.map(escapeHtml).join('<br>') + '</div>' : ''}
+          <div style="margin-top:10px;color:var(--text3);font-size:11px">提示: 在 OpenCode 中执行 /agents reload 使配置生效</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn accent" onclick="closeModal()">完成</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') closeModal(); };
+
+  setStatus('写入完成: ' + parts.join(', '));
+  toast(allOk ? '导入完成 (' + keys.length + ' 个 Agent)' : '部分完成，' + results.failed.length + ' 个错误', allOk ? 'success' : 'error');
+}
+
+async function updateOpencodeJson(opencodeHandle, agentKeys) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let existingConfig = { agents: {} };
+  let fileHandle;
+
+  // Try to read existing opencode.json
+  try {
+    fileHandle = await opencodeHandle.getFileHandle('opencode.json', { create: false });
+    const file = await fileHandle.getFile();
+    const text = await file.text();
+    try {
+      existingConfig = JSON.parse(text);
+    } catch {
+      // corrupt JSON, start fresh
+      existingConfig = { agents: {} };
+    }
+  } catch {
+    // File doesn't exist, create it
+    fileHandle = await opencodeHandle.getFileHandle('opencode.json', { create: true });
+  }
+
+  // Merge agents: add/update entries for current agents, keep existing others
+  if (!existingConfig.agents || typeof existingConfig.agents !== 'object') {
+    existingConfig.agents = {};
+  }
+
+  const ags = A();
+  for (const key of agentKeys) {
+    const agent = ags[key];
+    const name = agent.name || key;
+    existingConfig.agents[name] = {
+      description: agent.desc || '',
+      model: agent.model || 'opencode/gpt-5.1-codex',
+      mode: agent.mode || 'subagent',
+      color: agent.color || '#6c7bff',
+      temperature: agent.temp !== undefined ? agent.temp : 0.2,
+      max_iterations: agent.maxIter || 15,
+      ...(agent.hidden ? { hidden: true } : {}),
+      tools: Object.fromEntries(Object.entries(agent.tools || {}).filter(([_, v]) => v)),
+      permissions: {
+        edit: (agent.perms && agent.perms.edit) || 'deny',
+        bash: (agent.perms && agent.perms.bash) || 'deny',
+        webfetch: (agent.perms && agent.perms.webfetch) || 'deny'
+      }
+    };
+  }
+
+  const jsonContent = JSON.stringify(existingConfig, null, 2);
+  const writable = await fileHandle.createWritable();
+  await writable.write(encoder.encode(jsonContent));
+  await writable.close();
+}
+
+// =========== SUITE MANAGEMENT ===========
+function renderSuiteSelector() {
+  const sel = document.getElementById('suiteSelector');
+  sel.innerHTML = Object.keys(suites).map(name =>
+    `<option value="${escapeHtml(name)}" ${name === activeSuite ? 'selected' : ''}>${escapeHtml(name)}</option>`
+  ).join('');
+}
+
+function switchSuite(name) {
+  if (!name || !suites[name]) return;
+  activeSuite = name;
+  currentAgent = null;
+  saveToStorage();
+  renderSuiteSelector();
+  renderAgentList();
+  const keys = Object.keys(A());
+  if (keys.length > 0) {
+    selectAgent(keys[0]);
+  } else {
+    document.getElementById('agentForm').style.display = 'none';
+    document.getElementById('emptyForm').style.display = 'flex';
+    document.getElementById('previewContent').innerHTML = '<span style="color:var(--text3)">选择一个 Agent 查看预览</span>';
+  }
+  setStatus('已切换到方案: ' + name);
+}
+
+function showInputModal(title, placeholder, defaultValue, onConfirm) {
+  const container = document.getElementById('modalContainer');
+  container.innerHTML = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <h3>${escapeHtml(title)}</h3>
+        <input type="text" id="modalInput" value="${escapeHtml(defaultValue || '')}" placeholder="${escapeHtml(placeholder)}"
+          style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);color:var(--text);font-size:13px;outline:none;margin:8px 0"
+          onkeydown="if(event.key==='Enter')document.getElementById('modalInputConfirm').click()">
+        <div class="btn-row">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn accent" id="modalInputConfirm">确认</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalInput').focus();
+  document.getElementById('modalInputConfirm').onclick = () => {
+    const val = document.getElementById('modalInput').value.trim();
+    closeModal();
+    if (val) onConfirm(val);
+  };
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') closeModal(); };
+}
+
+function createSuite() {
+  showInputModal('新建方案', '英文名称，如 my-suite', '', (trimmed) => {
+    if (suites[trimmed]) {
+      toast('方案「' + trimmed + '」已存在', 'error');
+      return;
+    }
+    suites[trimmed] = { agents: {} };
+    activeSuite = trimmed;
+    currentAgent = null;
+    saveToStorage();
+    renderSuiteSelector();
+    renderAgentList();
+    document.getElementById('agentForm').style.display = 'none';
+    document.getElementById('emptyForm').style.display = 'flex';
+    document.getElementById('previewContent').innerHTML = '<span style="color:var(--text3)">选择一个 Agent 查看预览</span>';
+    setStatus('已创建方案: ' + trimmed);
+    toast('已创建方案: ' + trimmed + '。可加载预设或新建 Agent，然后用「导入到 OpenCode」写入 suites/' + getSuiteFolder(trimmed) + '/', 'success');
+  });
+}
+
+function renameSuite() {
+  if (!activeSuite) return;
+  showInputModal('重命名方案', '新名称', activeSuite, (trimmed) => {
+    if (trimmed === activeSuite) return;
+    if (suites[trimmed]) {
+      toast('方案「' + trimmed + '」已存在', 'error');
+      return;
+    }
+    suites[trimmed] = suites[activeSuite];
+    delete suites[activeSuite];
+    activeSuite = trimmed;
+    saveToStorage();
+    renderSuiteSelector();
+    setStatus('已重命名为: ' + trimmed);
+    toast('已重命名为: ' + trimmed, 'success');
+  });
+}
+
+function deleteSuite() {
+  const allNames = Object.keys(suites);
+  if (allNames.length <= 1) {
+    toast('至少保留一个方案', 'error');
+    return;
+  }
+  showConfirm(`确认删除方案「${activeSuite}」及其所有 Agent 吗？此操作不可撤销。`, () => {
+    delete suites[activeSuite];
+    activeSuite = Object.keys(suites)[0];
+    currentAgent = null;
+    saveToStorage();
+    renderSuiteSelector();
+    renderAgentList();
+    const keys = Object.keys(A());
+    if (keys.length > 0) {
+      selectAgent(keys[0]);
+    } else {
+      document.getElementById('agentForm').style.display = 'none';
+      document.getElementById('emptyForm').style.display = 'flex';
+      document.getElementById('previewContent').innerHTML = '<span style="color:var(--text3)">选择一个 Agent 查看预览</span>';
+    }
+    setStatus('已删除方案，当前: ' + activeSuite);
+    toast('已删除方案', 'info');
+  });
+}
+
+function copySuite() {
+  if (!activeSuite) return;
+  const baseName = activeSuite + ' 副本';
+  let newName = baseName;
+  let i = 1;
+  while (suites[newName]) { newName = baseName + ' (' + (i++) + ')'; }
+
+  // Deep clone the suite
+  suites[newName] = JSON.parse(JSON.stringify(suites[activeSuite]));
+  activeSuite = newName;
+  currentAgent = null;
+  saveToStorage();
+  renderSuiteSelector();
+  renderAgentList();
+  const keys = Object.keys(A());
+  if (keys.length > 0) selectAgent(keys[0]);
+  setStatus('已复制方案: ' + newName);
+  toast('已复制方案: ' + newName, 'success');
+}
+
+// =========== VERIFY SUITES ===========
+async function verifySuites() {
+  if (typeof window.showDirectoryPicker !== 'function') {
+    toast('浏览器不支持 File System Access API，请使用 tools/verify_suites.py 脚本', 'error');
+    return;
+  }
+  let dirHandle;
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'read', startIn: 'desktop' });
+  } catch(e) { if (e.name === 'AbortError') return; toast('打开目录失败', 'error'); return; }
+
+  setStatus('正在验证 suites...');
+  let suitesHandle;
+  try { suitesHandle = await dirHandle.getDirectoryHandle('suites'); }
+  catch { toast('所选目录中未找到 suites/ 目录，请选择 hermes-agents 项目根目录', 'error'); setStatus('验证失败'); return; }
+
+  const results = { total: 0, ok: 0, issues: [] };
+  const crossCheck = {};
+
+  for await (const [suiteName, suiteHandle] of suitesHandle.entries()) {
+    if (suiteHandle.kind !== 'directory') continue;
+    let opencodeHandle, agentsHandle;
+    try { opencodeHandle = await suiteHandle.getDirectoryHandle('.opencode'); }
+    catch { results.issues.push(`[${suiteName}] 缺少 .opencode/ 目录`); continue; }
+    try { agentsHandle = await opencodeHandle.getDirectoryHandle('agents'); }
+    catch { results.issues.push(`[${suiteName}] 缺少 .opencode/agents/ 目录`); continue; }
+
+    for await (const [filename, fileHandle] of agentsHandle.entries()) {
+      if (!filename.endsWith('.md')) continue;
+      results.total++;
+      const stem = filename.replace(/\.md$/, '');
+      try {
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        const fm = parseFrontmatter(text);
+
+        if (!fm || Object.keys(fm).length === 0) {
+          results.issues.push(`[${suiteName}/${filename}] 缺少或无法解析 YAML frontmatter`);
+          continue;
+        }
+
+        const missing = [];
+        for (const f of REQUIRED_FIELDS) { if (!(f in fm)) missing.push(f); }
+        if (missing.length > 0) {
+          results.issues.push(`[${suiteName}/${filename}] 缺少字段: ${missing.join(', ')}`);
+          continue;
+        }
+
+        if (fm.mode && !VALID_MODES.has(fm.mode)) {
+          results.issues.push(`[${suiteName}/${filename}] mode='${fm.mode}' 无效`);
+          continue;
+        }
+
+        results.ok++;
+
+        // Cross-suite consistency check
+        if (!crossCheck[stem]) crossCheck[stem] = {};
+        crossCheck[stem][suiteName] = fm;
+
+      } catch(e) {
+        results.issues.push(`[${suiteName}/${filename}] 读取失败: ${e.message}`);
+      }
+    }
+  }
+
+  // Cross-suite check
+  for (const [agentName, suiteFms] of Object.entries(crossCheck)) {
+    const suiteNames = Object.keys(suiteFms);
+    if (suiteNames.length <= 1) continue;
+    const base = suiteNames[0];
+    const baseFm = suiteFms[base];
+    for (let i = 1; i < suiteNames.length; i++) {
+      const other = suiteNames[i];
+      const otherFm = suiteFms[other];
+      const diffs = [];
+      for (const key of Object.keys(baseFm)) {
+        if (key === 'description') continue;
+        if (JSON.stringify(baseFm[key]) !== JSON.stringify(otherFm[key])) {
+          diffs.push(`${key}: ${baseFm[key]} vs ${otherFm[key]}`);
+        }
+      }
+      if (diffs.length > 0) {
+        results.issues.push(`[跨方案] ${agentName} (${base} vs ${other}): ${diffs.join('; ')}`);
+      }
+    }
+  }
+
+  // Show results modal
+  let summaryClass = results.issues.length === 0 ? 'status-ok' : 'status-warn';
+  let summaryIcon = results.issues.length === 0 ? '✅' : '⚠️';
+  let issueLines = results.issues.length > 0
+    ? results.issues.map(i => `<div style="font-size:11px;color:var(--text2);margin:3px 0;font-family:monospace">${escapeHtml(i)}</div>`).join('')
+    : '<div style="color:var(--green);margin-top:8px">所有检查通过，配置一致。</div>';
+
+  const container = document.getElementById('modalContainer');
+  container.innerHTML = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal" style="max-width:600px;max-height:80vh;overflow-y:auto">
+        <h3>${summaryIcon} Suites 验证报告</h3>
+        <div style="margin:12px 0;padding:10px;background:var(--surface2);border-radius:var(--radius-sm)">
+          <span style="color:var(--green)">通过: ${results.ok}</span> &nbsp;|&nbsp;
+          <span style="color:var(--text2)">总计: ${results.total} 个 Agent</span> &nbsp;|&nbsp;
+          <span style="color:${results.issues.length > 0 ? 'var(--red)' : 'var(--text2)'}">问题: ${results.issues.length}</span>
+        </div>
+        ${issueLines}
+        <div class="btn-row">
+          <button class="btn" onclick="closeModal()">关闭</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') closeModal(); };
+
+  if (results.issues.length === 0) {
+    setStatus('验证通过: ' + results.ok + ' 个 Agent');
+    toast('验证通过: 全部 ' + results.ok + ' 个 Agent 配置一致', 'success');
+  } else {
+    setStatus('验证发现 ' + results.issues.length + ' 个问题');
+    toast('发现 ' + results.issues.length + ' 个问题，详情见弹窗', 'error');
+  }
+}
+
+// =========== LOAD FROM SUITES ===========
+async function loadFromSuites() {
+  if (typeof window.showDirectoryPicker !== 'function') {
+    toast('浏览器不支持 File System Access API，请手动复制 suites/ 中的 .md 文件', 'error');
+    return;
+  }
+  let dirHandle;
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'read', startIn: 'desktop' });
+  } catch(e) { if (e.name === 'AbortError') return; toast('打开目录失败', 'error'); return; }
+
+  setStatus('正在读取 suites...');
+  let suitesHandle;
+  try { suitesHandle = await dirHandle.getDirectoryHandle('suites'); }
+  catch { toast('未找到 suites/ 目录', 'error'); return; }
+
+  // Collect suite folders
+  const suiteFolders = [];
+  for await (const [name, handle] of suitesHandle.entries()) {
+    if (handle.kind === 'directory') {
+      suiteFolders.push({ name, handle });
+    }
+  }
+  if (suiteFolders.length === 0) { toast('suites/ 中没有方案目录', 'error'); return; }
+
+  // Show suite selection
+  const options = suiteFolders.map((s, i) => ({
+    label: escapeHtml(s.name),
+    idx: i
+  }));
+  options.push({ label: '取消', idx: -1 });
+
+  const listHtml = suiteFolders.map((s, i) =>
+    `<button class="btn" onclick="loadSuiteFromHandle(${i})" style="width:100%;text-align:left;margin-bottom:6px">
+      ${escapeHtml(s.name)}
+    </button>`
+  ).join('');
+
+  window._suiteFolders = suiteFolders;
+
+  const container = document.getElementById('modalContainer');
+  container.innerHTML = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <h3>📂 选择要加载的方案</h3>
+        <p style="color:var(--text2);font-size:12px;margin-bottom:12px">从 suites/ 目录中选择方案，将替换当前方案中的所有 Agent</p>
+        ${listHtml}
+        <div class="btn-row">
+          <button class="btn" onclick="closeModal()">取消</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') closeModal(); };
+}
+
+async function loadSuiteFromHandle(idx) {
+  closeModal();
+  const suiteFolders = window._suiteFolders;
+  if (!suiteFolders || idx < 0 || idx >= suiteFolders.length) return;
+  const sf = suiteFolders[idx];
+
+  let opencodeHandle, agentsHandle;
+  try { opencodeHandle = await sf.handle.getDirectoryHandle('.opencode'); }
+  catch { toast(`方案 ${sf.name} 缺少 .opencode/ 目录`, 'error'); return; }
+  try { agentsHandle = await opencodeHandle.getDirectoryHandle('agents'); }
+  catch { toast(`方案 ${sf.name} 缺少 .opencode/agents/ 目录`, 'error'); return; }
+
+  const loadedAgents = {};
+  for await (const [filename, fileHandle] of agentsHandle.entries()) {
+    if (!filename.endsWith('.md')) continue;
+    const stem = filename.replace(/\.md$/, '');
+    try {
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      const fm = parseFrontmatter(text);
+
+      loadedAgents[stem] = {
+        name: stem,
+        mode: fm.mode || 'subagent',
+        color: fm.color || '#6c7bff',
+        temp: fm.temperature !== undefined ? fm.temperature : 0.2,
+        maxIter: fm.max_iterations || 15,
+        model: fm.model || 'opencode/gpt-5.1-codex',
+        hidden: fm.hidden || false,
+        desc: fm.description || '',
+        prompt: text.replace(/^---[\s\S]*?---\n*/, ''),
+        tools: fm.tools || {},
+        perms: fm.permissions || { edit:'deny', bash:'deny', webfetch:'deny' }
+      };
+    } catch(e) {
+      toast(`读取 ${filename} 失败: ${e.message}`, 'error');
+    }
+  }
+
+  if (Object.keys(loadedAgents).length === 0) {
+    toast(`方案 ${sf.name} 中没有有效的 Agent 文件`, 'error');
+    return;
+  }
+
+  // Replace current suite agents
+  const ags = A();
+  for (const k of Object.keys(ags)) delete ags[k];
+  Object.assign(ags, loadedAgents);
+  saveToStorage();
+  renderAgentList();
+  const keys = Object.keys(ags);
+  if (keys.length > 0) selectAgent(keys[0]);
+  setStatus(`已加载 suites/${sf.name}/ (${keys.length} 个 Agent)`);
+  toast(`已从 suites/${sf.name}/ 加载 ${keys.length} 个 Agent`, 'success');
+}
+
+// =========== IMPORT / EXPORT SUITE ===========
+function exportSuiteJson() {
+  const ags = A();
+  const keys = Object.keys(ags);
+  if (keys.length === 0) {
+    toast('当前方案没有可导出的 Agent', 'error');
+    return;
+  }
+
+  const exportData = {
+    name: activeSuite,
+    exportedAt: new Date().toISOString(),
+    version: '2.0',
+    agents: {}
+  };
+
+  keys.forEach(k => { exportData.agents[k] = ags[k]; });
+
+  const jsonStr = JSON.stringify(exportData, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hermes-suite-' + getSuiteFolder(activeSuite) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  setStatus('已导出方案: ' + activeSuite);
+  toast('已导出方案 (JSON): ' + activeSuite, 'success');
+}
+
+function importSuiteJson() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (!data.agents || typeof data.agents !== 'object' || Object.keys(data.agents).length === 0) {
+        toast('无效的方案文件：缺少 agents 字段或为空', 'error');
+        return;
+      }
+
+      const suiteName = data.name || file.name.replace(/\.json$/i, '').replace(/^hermes-suite-/, '');
+
+      showConfirm(`将导入方案「${escapeHtml(suiteName)}」（${Object.keys(data.agents).length} 个 Agent）到当前方案「${escapeHtml(activeSuite)}」中？`, () => {
+        const ags = A();
+        // Clear current
+        for (const k of Object.keys(ags)) { delete ags[k]; }
+
+        let count = 0;
+        Object.entries(data.agents).forEach(([key, agent]) => {
+          ags[key] = {
+            name: agent.name || key,
+            mode: agent.mode || 'subagent',
+            color: agent.color || '#6c7bff',
+            temp: agent.temp !== undefined ? agent.temp : 0.2,
+            maxIter: agent.maxIter || 15,
+            model: agent.model || 'opencode/gpt-5.1-codex',
+            hidden: agent.hidden || false,
+            desc: agent.desc || '',
+            prompt: agent.prompt || '',
+            tools: agent.tools || { read: true, list: true },
+            perms: agent.perms || { edit: 'deny', bash: 'deny', webfetch: 'deny' }
+          };
+          count++;
+        });
+
+        saveToStorage();
+        renderAgentList();
+        const keys = Object.keys(ags);
+        if (keys.length > 0) selectAgent(keys[0]);
+        setStatus('已导入方案: ' + suiteName + ' (' + count + ' 个 Agent)');
+        toast('已导入方案: ' + suiteName + ' (' + count + ' 个 Agent)', 'success');
+      });
+    } catch(err) {
+      toast('导入失败：无效的 JSON 文件 - ' + err.message, 'error');
+    }
+  };
+  input.click();
+}
+
+// =========== HELPERS ===========
+function downloadFile(filename, content) {
+  const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type + ' show';
+  clearTimeout(el._timeout);
+  el._timeout = setTimeout(() => { el.className = 'toast'; }, 2500);
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+function showConfirm(msg, onOk) {
+  const container = document.getElementById('modalContainer');
+  container.innerHTML = `
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <h3>⚠️ 确认操作</h3>
+        <p style="color:var(--text2);font-size:13px;line-height:1.5">${msg}</p>
+        <div class="btn-row">
+          <button class="btn" onclick="closeModal()">取消</button>
+          <button class="btn danger" id="confirmOk">确认</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('confirmOk').onclick = () => { closeModal(); onOk(); };
+  document.getElementById('modalOverlay').onclick = (e) => { if (e.target.id === 'modalOverlay') closeModal(); };
+}
+
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+
+// Color picker sync
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  const colorInput = document.getElementById('cfgColor');
+  if (colorInput) {
+    colorInput.addEventListener('input', () => {
+      document.getElementById('cfgColorHex').textContent = colorInput.value;
+    });
+  }
+});
+
+</script>
+</body>
+</html>
