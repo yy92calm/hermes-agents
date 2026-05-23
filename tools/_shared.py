@@ -17,27 +17,98 @@ VALID_MODES = {'primary', 'subagent'}
 
 
 def parse_frontmatter(text: str) -> dict:
-    """从 Markdown 文本中提取 YAML frontmatter（惰性解析，仅提取键值对）。"""
+    """从 Markdown 文本中提取 YAML frontmatter。
+    
+    支持:
+    - 简单键值对: key: value
+    - 嵌套字典: key:\n  subkey: value
+    - 列表: key:\n  - item1\n  - item2
+    """
     match = re.match(r'^---\s*\n(.*?)\n---', text, re.DOTALL)
     if not match:
         return {}
     yaml_str = match.group(1)
     result = {}
-    for line in yaml_str.split('\n'):
-        line = line.strip()
-        if not line or line.startswith('#'):
+    current_path = []  # 当前嵌套路径栈
+
+    def set_nested(path, key, value):
+        """在嵌套路径中设置值。"""
+        target = result
+        for p in path:
+            if p not in target or not isinstance(target[p], dict):
+                target[p] = {}
+            target = target[p]
+        target[key] = value
+
+    def get_nested(path, key):
+        """获取嵌套路径中的值。"""
+        target = result
+        for p in path:
+            if p not in target or not isinstance(target[p], dict):
+                return None
+            target = target[p]
+        return target.get(key)
+
+    def _convert(val):
+        """将字符串值转换为合适的 Python 类型。"""
+        v = val.strip().strip('"').strip("'")
+        if v.lower() == 'true':
+            return True
+        elif v.lower() == 'false':
+            return False
+        elif re.match(r'^-?\d+(\.\d+)?$', v):
+            return float(v) if '.' in v else int(v)
+        return v
+
+    lines = yaml_str.split('\n')
+    # 先扫描每行的缩进级别和类型
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            i += 1
             continue
-        if ':' in line:
-            key, _, value = line.partition(':')
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if value.lower() == 'true':
-                value = True
-            elif value.lower() == 'false':
-                value = False
-            elif re.match(r'^-?\d+(\.\d+)?$', value):
-                value = float(value) if '.' in value else int(value)
+
+        indent = len(line) - len(line.lstrip())
+
+        # 列表项: - item
+        if stripped.startswith('- '):
+            value = _convert(stripped[2:])
+            # 找到所属的父 key（上一行非列表行）
+            if current_path:
+                parent_key = current_path[-1]
+                parent = result
+                for p in current_path[:-1]:
+                    parent = parent.get(p, {})
+                if not isinstance(parent.get(parent_key), list):
+                    parent[parent_key] = []
+                parent[parent_key].append(value)
+            i += 1
+            continue
+
+        if ':' not in stripped:
+            i += 1
+            continue
+
+        key, _, raw_val = stripped.partition(':')
+        key = key.strip()
+        raw_val = raw_val.strip()
+        value = _convert(raw_val) if raw_val else None
+
+        # 根据缩进确定嵌套层级
+        path_level = indent // 2
+        if path_level == 0:
+            current_path = [key]
             result[key] = value
+        else:
+            # 调整路径到对应层级：父路径为 current_path[:path_level]
+            path = current_path[:path_level]
+            set_nested(path, key, value)
+            current_path = path + [key]
+
+        i += 1
+
     return result
 
 
@@ -78,6 +149,21 @@ def validate_frontmatter(fm: dict, filename: str = '') -> list:
     temp = fm.get('temperature')
     if temp is not None and (not isinstance(temp, (int, float)) or temp < 0 or temp > 2):
         issues.append(f'{prefix}[警告] temperature={temp} 超出合理范围 (0-2)')
+
+    # 验证 skills 字段（可选，但如果存在必须是列表）
+    skills = fm.get('skills')
+    if skills is not None:
+        if not isinstance(skills, list):
+            issues.append(f'{prefix}[错误] skills 必须是列表格式')
+        elif not all(isinstance(s, str) for s in skills):
+            issues.append(f'{prefix}[错误] skills 列表中的元素必须是字符串')
+
+    # 验证 permission.skill 字段
+    perms = fm.get('permissions')
+    if perms is not None and isinstance(perms, dict):
+        skill_perm = perms.get('skill')
+        if skill_perm is not None and skill_perm not in ('allow', 'ask', 'deny'):
+            issues.append(f"{prefix}[错误] permission.skill='{skill_perm}' 无效（应为 allow/ask/deny）")
 
     return issues
 
@@ -123,6 +209,48 @@ def copy_agent_files(agents: list[dict], target_dir: Path) -> list[str]:
     return copied
 
 
+def uninstall_suite(target_dir: Path) -> tuple[list[str], bool]:
+    """卸载目标项目的所有 agent 配置。
+
+    Args:
+        target_dir: 目标 OpenCode 项目路径
+
+    Returns:
+        (删除的文件列表, 是否成功更新 opencode.json)
+    """
+    agents_dir = target_dir / '.opencode' / 'agents'
+    deleted = []
+
+    if agents_dir.is_dir():
+        for md_file in agents_dir.glob('*.md'):
+            try:
+                md_file.unlink()
+                deleted.append(md_file.name)
+            except Exception:
+                pass
+
+    json_path = target_dir / 'opencode.json'
+    json_ok = False
+
+    if json_path.exists():
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+
+            if 'agents' in config:
+                config['agents'] = {}
+
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+                f.write('\n')
+
+            json_ok = True
+        except Exception:
+            pass
+
+    return deleted, json_ok
+
+
 def update_opencode_json(agents: list[dict], target_dir: Path) -> dict:
     """更新目标项目的 opencode.json，注册所有 agent。"""
     import json
@@ -155,6 +283,8 @@ def update_opencode_json(agents: list[dict], target_dir: Path) -> dict:
 
         if 'tools' in fm:
             entry['tools'] = fm['tools']
+        if 'permissions' in fm and isinstance(fm['permissions'], dict):
+            entry['permissions'] = fm['permissions']
 
         config['agents'][stem] = entry
         registered[stem] = entry

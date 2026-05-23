@@ -1,155 +1,192 @@
-# Hermes Agents — 多 Agent 协作框架
+# Hermes Agents — OpenCode 多 Agent 配置管理工具
 
 ## 项目简介
 
-Hermes Agents 是基于 OpenCode 代理（Agents）机制构建的多 Agent 协作框架。它由一个 Router 主代理（Hermes）和六个专业 Sub Agent 组成，各司其职、协同工作。
+Hermes Agents 是一套用于维护 OpenCode 多 Agent 配置的工具集。它提供可视化配置工具、预设方案样例、验证脚本等，帮助开发者轻松创建和管理 Agent 配置。
+
+**核心定位：**
+- **配置管理工具** — 可视化编辑、导入导出、验证修复
+- **预设方案样例** — 4 套开箱即用的配置样例供参考
+- **技能扩展机制** — 内置 5 个技能，支持自定义扩展
 
 ## 架构
 
 ```
-用户
-  │
-  ▼
-┌─────────────────────────────────────┐
-│         Hermes (Router 主代理)        │
-│     总调度官：分析意图、拆解任务、调度     │
-└──────┬──────┬──────┬──────┬──────┬────┘
-       │      │      │      │      │
-   ┌───▼──┐┌──▼───┐┌──▼──┐┌──▼───┐┌─▼────┐┌──▼──────┐
-   │Scout ││Architect││Coder││Reviewer││ShellRunner││Researcher│
-   │探索  ││ 架构  ││编码  ││ 审查  ││  命令行  ││  调研   │
-   │只读  ││ 只读  ││读写  ││ 只读  ││ 命令执行 ││ 只读+联网│
-   └──────┘└───────┘└─────┘└───────┘└────────┘└─────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    config-tool.html                          │
+│              可视化配置工具（单文件 Web 应用）                  │
+└────────────────────────┬────────────────────────────────────┘
+                         │
+         ┌───────────────┼───────────────┐
+         ▼               ▼               ▼
+    ┌─────────┐    ┌──────────┐    ┌──────────┐
+    │ suites/ │    │  tools/  │    │.opencode/│
+    │ 预设样例 │    │ 辅助脚本  │    │ Agent配置 │
+    └─────────┘    └──────────┘    └──────────┘
 ```
 
-## 代理清单
+## 预设样例
 
-| 代理 | 模式 | 角色 | 权限 | 颜色 |
-|------|------|------|------|------|
-| **Hermes** | primary | 总调度指挥官 | 只读 + Task | `#D4A017` |
-| **Scout** | subagent | 代码探索专家 | 只读 | `#2E86C1` |
-| **Architect** | subagent | 架构设计专家 | 只读 + 联网 | `#8E44AD` |
-| **Coder** | subagent | 代码编写专家 | 读写 + 命令 | `#27AE60` |
-| **Reviewer** | subagent | 代码审查专家 | 只读 | `#E74C3C` |
-| **ShellRunner** | subagent | 命令行专家 | 命令执行 | `#E67E22` |
-| **Researcher** | subagent | 调研检索专家 | 只读 + 联网 | `#17A589` |
+`suites/` 目录包含 4 套预设样例：
 
-## 使用方式
+| 方案 | Agent 数量 | 说明 |
+|------|-----------|------|
+| **hermes-fullstack** | 7 个 | 全栈开发：Hermes + Scout + Architect + Coder + Reviewer + ShellRunner + Researcher |
+| **lite-review** | 3 个 | 轻量审查：Hermes-Lite + Scout + Reviewer |
+| **doc-writer** | 3 个 | 文档写作：Hermes-Doc + Researcher + Reviewer |
+| **mini-runner** | 3 个 | 极简执行：Hermes-Mini + Coder + ShellRunner |
 
-### 1. 项目配置
+## Agent 配置字段
 
-在 OpenCode 中打开本目录作为项目。项目根目录的 `opencode.json` 会自动加载所有代理配置。
+### 基本信息
 
-### 2. 直接使用 Hermes
+| 字段 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| `name` | string | Agent 名称（文件名） | `hermes`, `coder` |
+| `mode` | string | 模式 | `primary` 或 `subagent` |
+| `description` | string | 描述 | 简要说明功能 |
+| `model` | string | 使用的模型 | `opencode/gpt-5.1-codex` |
+| `color` | string | 显示颜色 | `#D4A017` |
+| `temperature` | float | 温度参数 | 0.0 ~ 1.0 |
+| `max_iterations` | int | 最大迭代次数 | 10 ~ 30 |
+| `hidden` | bool | 是否隐藏 | `true` / `false` |
 
-在 OpenCode 会话中切换到 **Hermes** 主代理（Tab 键循环），直接描述你的需求：
+### 工具配置
 
-```
-帮我给这个项目添加用户认证功能
-```
-
-Hermes 会自动：分析需求 → 调度 Scout 了解现有代码 → 调度 Architect 设计方案 → 调度 Coder 实现 → 调度 Reviewer 审查。
-
-### 3. 手动 @ 调用子代理
-
-你也可以在任意会话中手动调用子代理：
-
-```
-@scout 找到所有与用户认证相关的代码
-@architect 设计一个微服务间通信的方案
-@coder 实现 JWT token 刷新逻辑
-@reviewer 审查 src/auth/ 下的代码
-@shellrunner 运行全部测试套件
-@researcher 调研 2025 年 Node.js 最佳实践
-```
-
-## 典型工作流示例
-
-### 新功能开发
-
-```
-用户: "添加文件上传功能"
-  ↓
-Hermes: "我先让 Scout 了解一下项目结构"
-  → Scout: 搜索现有上传相关代码、路由定义
-  ↓
-Hermes: "让 Architect 设计方案"
-  → Architect: 输出文件上传模块架构文档
-  ↓
-Hermes: "交给 Coder 实现"
-  → Coder: 编写代码、添加测试
-  ↓
-Hermes: "最后让 Reviewer 把关"
-  → Reviewer: 代码审查报告
-  ↓
-Hermes: 整合所有产出，交付最终结果
+```yaml
+tools:
+  read: true       # 读取文件
+  write: true      # 创建文件
+  edit: true       # 编辑文件
+  bash: true       # 执行命令
+  list: true       # 列出目录
+  grep: true       # 搜索代码
+  glob: true       # 文件名匹配
+  todo_write: true # 任务管理
+  task: true       # 调用子代理
+  web_search: true # 联网搜索
+  web_fetch: true  # 获取网页
 ```
 
-### Bug 修复
+### 技能关联
 
+```yaml
+skills:
+  - suite-manager      # 方案管理技能
+  - hermes-import      # 方案导入技能
+  - task-planner       # 任务规划技能
+  - test-generator     # 测试生成技能
+  - security-checklist # 安全审查技能
+  - tech-comparison    # 技术对比技能
 ```
-用户: "登录后 token 不刷新"
-  ↓
-Hermes: "派 Scout 定位问题"
-  → Scout: 找到 auth.ts 中 token 刷新逻辑
-  ↓
-Hermes: "派 Coder 修复"
-  → Coder: 修复 token 刷新 bug
-  ↓
-Hermes: "派 Reviewer 确认修复质量"
-  → Reviewer: 确认修复无新问题
+
+### 权限配置
+
+```yaml
+permissions:
+  skill: allow    # allow / ask / deny
+  edit: ask       # allow / ask / deny
+  bash: ask       # allow / ask / deny
+  webfetch: deny  # allow / ask / deny
 ```
+
+## 内置技能
+
+项目内置 6 个技能，位于 `skills/` 目录（配置工具专用，不随方案导入）：
+
+| 技能 | 文件 | 用途 |
+|------|------|------|
+| `suite-manager` | `skills/suite-manager/SKILL.md` | 方案管理：列出、切换、卸载 agent 配置 |
+| `hermes-import` | `skills/hermes-import/SKILL.md` | 方案导入，从 suites/ 导入配置到项目 |
+| `task-planner` | `skills/task-planner/SKILL.md` | 任务规划与拆解，输出任务 DAG |
+| `test-generator` | `skills/test-generator/SKILL.md` | 系统化测试生成，覆盖正常/边界/异常场景 |
+| `security-checklist` | `skills/security-checklist/SKILL.md` | 安全审查清单，按 OWASP 检查漏洞 |
+| `tech-comparison` | `skills/tech-comparison/SKILL.md` | 结构化技术对比，多维度分析 |
+
+### 创建新技能
+
+1. 在 `skills/` 下创建目录，如 `my-skill/`
+2. 创建 `SKILL.md` 文件，包含 YAML frontmatter 和技能说明：
+
+```markdown
+---
+name: my-skill
+description: 技能描述
+---
+
+# 技能名称
+
+## 功能
+...
+```
+
+3. 在 Agent 的 `skills` 字段中引用（仅对配置工具项目本身生效）
 
 ## 项目结构
 
 ```
 hermes-agents/
-├── opencode.json              # OpenCode 项目配置
-├── config-tool.html           # 可视化配置工具
-├── AGENTS.md                  # 本说明文件
+├── config-tool.html           # 可视化配置工具（单文件 Web 应用）
+├── opencode.json              # 项目配置（代理注册）
+├── AGENTS.md                  # 本文件（开发者文档）
 ├── README.md                  # 用户使用指南
-├── suites/                    # 多套预设方案
-│   ├── hermes-fullstack/
-│   ├── lite-review/
-│   ├── doc-writer/
-│   └── mini-runner/
+├── suites/                    # 预设方案样例
+│   ├── hermes-fullstack/      # 全栈开发样例
+│   │   └── .opencode/agents/
+│   ├── lite-review/           # 轻量审查样例
+│   ├── doc-writer/            # 文档写作样例
+│   └── mini-runner/           # 极简执行样例
 ├── tools/                     # 辅助脚本
-│   ├── _shared.py             # 公共模块
-│   ├── import_suite.py        # 方案导入脚本
-│   └── verify_suites.py       # 配置验证脚本
+│   ├── _shared.py             # 公共模块（YAML 解析、字段验证、文件操作）
+│   ├── import_suite.py        # 方案导入脚本（支持回滚 + suites 同步）
+│   └── verify_suites.py       # suites 配置一致性检查脚本（支持 --fix 自动修复）
+├── skills/                    # 配置工具专用技能（不随方案导入）
+│   ├── suite-manager/         # 方案管理技能
+│   ├── hermes-import/         # 方案导入技能
+│   ├── task-planner/          # 任务规划技能
+│   ├── test-generator/        # 测试生成技能
+│   ├── security-checklist/    # 安全审查技能
+│   └── tech-comparison/       # 技术对比技能
 └── .opencode/
-    ├── agents/
-    │   ├── hermes.md         # Router 主代理
-    │   ├── scout.md          # 代码探索专家
-    │   ├── architect.md      # 架构设计专家
-    │   ├── coder.md          # 代码编写专家
-    │   ├── reviewer.md       # 代码审查专家
-    │   ├── shellrunner.md    # 命令行专家
-    │   └── researcher.md     # 调研检索专家
-    └── skill/
-        └── hermes-import/     # 导入 Skill
+    └── agents/                # Agent 配置文件
+        ├── hermes.md
+        ├── scout.md
+        ├── architect.md
+        ├── coder.md
+        ├── reviewer.md
+        ├── shellrunner.md
+        └── researcher.md
 ```
 
 ## 设计原则
 
-1. **职责单一**：每个代理只做一类事情，边界清晰
-2. **权限最小化**：只读代理绝不赋予写权限，降低风险
-3. **人设驱动**：每个代理有鲜明的人设和沟通风格，便于理解和调试
-4. **声明式配置**：所有配置集中在 `opencode.json` 和 Markdown frontmatter 中
-5. **可扩展**：添加新代理只需创建新的 Markdown 文件并注册到配置中
+1. **工具优先** — 提供可视化配置工具，降低配置门槛
+2. **样例驱动** — 提供多套预设样例，覆盖常见场景
+3. **职责单一** — 每个 Agent 只做一类事情，边界清晰
+4. **权限最小化** — 只读代理绝不赋予写权限，降低风险
+5. **可扩展** — 添加新 Agent 或技能只需创建新文件
 
 ## 扩展指南
 
-### 添加新子代理
+### 添加新 Agent
 
-1. 在 `.opencode/agents/` 下创建 `newagent.md`，配置 YAML frontmatter 和系统提示词
-2. 在 `opencode.json` 的 `agents` 字段中添加配置
-3. 在 Hermes 的调度策略清单中添加新代理的映射规则
+1. 使用 `config-tool.html` 创建新 Agent
+2. 或手动在 `.opencode/agents/` 下创建 `.md` 文件
+3. 在 `opencode.json` 的 `agents` 字段中注册
 
-### 修改代理权限
+### 添加新技能
 
-编辑对应 Markdown 文件的 YAML frontmatter 中的 `tools` 和 `permissions` 字段，或修改 `opencode.json` 中的对应配置。
+1. 在 `.opencode/skill/` 下创建目录和 `SKILL.md`
+2. 在 Agent 的 `skills` 字段中引用
+3. 设置 `permissions.skill` 控制使用权限
+
+### 添加新方案
+
+1. 在 `suites/` 下创建新目录
+2. 创建 `.opencode/agents/` 子目录
+3. 放入 Agent 配置文件
+4. 运行 `python3 tools/verify_suites.py` 验证
 
 ## 版本
 
-v1.1.0 — 2026-05-24 全面优化：防抖、统一Modal、JSON导入导出、共享模块、回滚机制、自动修复
+v1.4.0 — 2026-05-24 重构技能目录：技能移至 skills/ 目录，明确为配置工具专用功能

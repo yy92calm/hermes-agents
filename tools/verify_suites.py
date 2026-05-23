@@ -241,6 +241,31 @@ def main():
     else:
         print('  无跨方案不一致问题')
 
+    # 检查 root agents 引用的技能是否存在
+    print()
+    print('=== 技能引用检查 ===')
+    skill_dir = project_root / 'skills'
+    existing_skills = {d.name for d in skill_dir.iterdir() if d.is_dir()} if skill_dir.is_dir() else set()
+
+    all_agent_files = list((project_root / '.opencode' / 'agents').glob('*.md'))
+    for suite_name, agents in suites_data.items():
+        all_agent_files.extend((project_root / 'suites' / suite_name / '.opencode' / 'agents').glob('*.md'))
+
+    skill_refs_found = False
+    for md_file in sorted(set(all_agent_files)):
+        fm = parse_frontmatter(md_file.read_text(encoding='utf-8'))
+        skills = fm.get('skills')
+        if isinstance(skills, list):
+            for skill_name in skills:
+                if isinstance(skill_name, str) and skill_name not in existing_skills:
+                    all_ok = False
+                    total_issues += 1
+                    print(f'  ⚠️ {md_file.name} 引用了技能 \'{skill_name}\'，但 skills/{skill_name}/ 目录不存在')
+                    skill_refs_found = True
+
+    if not skill_refs_found:
+        print('  所有技能引用均有效')
+
     print()
     if all_ok:
         print(f'✅ 全部检查通过!')

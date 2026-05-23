@@ -13,6 +13,7 @@ tools:
   web_search: true
   web_fetch: true
 permissions:
+  skill: deny
   edit: deny
   bash: deny
   webfetch: allow

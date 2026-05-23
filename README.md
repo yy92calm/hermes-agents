@@ -1,299 +1,207 @@
-# Hermes Agents — 多 Agent 协作框架
+# Hermes Agents — OpenCode 多 Agent 配置管理工具
 
-> 基于 OpenCode Agents 机制的智能多 Agent 协作系统
+> 一套可视化配置工具，帮助您轻松维护 OpenCode 的多 Agent 协作配置
+
+## 项目定位
+
+本项目是一个**配置管理工具集**，用于方便地为 [OpenCode](https://opencode.ai) 维护多 Agent 配置。项目提供：
+
+- **可视化配置工具** — 浏览器中编辑 Agent 配置，实时预览 Markdown
+- **预设方案样例** — 4 套开箱即用的 Agent 配置样例
+- **验证与导入导出** — Python 脚本检查配置一致性、导入导出方案
+
+`suites/` 目录中的配置仅为**样例**，您可以根据需要修改或创建自己的 Agent 配置。
 
 ## 快速开始
-
-### 前提条件
-
-- 已安装 [OpenCode](https://opencode.ai) 客户端
-- OpenCode 已配置好模型提供商（如 OpenCode Zen 的 `opencode/gpt-5.1-codex`）
 
 ### 方式一：可视化配置工具（推荐）
 
 直接双击打开 `config-tool.html`，或在浏览器中打开：
 
 ```bash
-open ~/Desktop/projects/hermes-agents/config-tool.html
+open config-tool.html
 ```
 
-功能：
-- **「加载预设」** — 一键导入 4 套预设方案（全栈/轻量审查/文档写作/极简执行）
-- **「📤 导出方案 / 📥 导入方案」** — 将整套 Agent 配置导出为 JSON 分享给他人，或从 JSON 文件导入
-- **「导出到 suites/」** — 将编辑好的配置写入 `suites/` 目录持久化
-- **「从 suites 加载」** — 从 `suites/` 目录读取已有配置回工具继续编辑
-- **「验证 suites」** — 检查 `suites/` 中所有配置的完整性和一致性
-- **「写入 suites & OpenCode」** — 一键写入 `suites/` 和 `.opencode/agents/` 并更新 `opencode.json`
+**核心功能：**
+
+| 功能 | 说明 |
+|------|------|
+| **加载预设** | 一键导入 4 套预设样例（全栈/轻量审查/文档写作/极简执行） |
+| **📤 导出方案 / 📥 导入方案** | 将配置导出为 JSON 分享，或从 JSON 导入 |
+| **导出到 suites/** | 将配置写入 `suites/` 目录持久化 |
+| **从 suites 加载** | 从 `suites/` 读取已有配置继续编辑 |
+| **验证 suites** | 检查配置完整性和一致性 |
+| **写入 suites & OpenCode** | 一键写入 `suites/` 和 `.opencode/agents/` 并更新 `opencode.json` |
+
+**编辑功能：**
 - 左侧列表管理 Agent（增删改查），支持多方案切换
 - 中间表单编辑配置（名称、模式、描述、模型、温度、颜色、系统提示词）
 - 右侧勾选工具/技能 + 配置权限 + 实时 Markdown 预览
-- **智能输入防抖** — 编辑 System Prompt 等长文本时自动 200ms 防抖，保存和预览不卡顿
-- **统一对话框** — 所有确认、输入操作均使用统一的自定义 Modal 组件
+- 智能输入防抖 — 编辑长文本时自动 200ms 防抖
 
-### 方式二：手动配置
-
-**1. 克隆或下载本项目**
+### 方式二：命令行工具
 
 ```bash
-# 或直接使用已有路径
-cd ~/Desktop/projects/hermes-agents
+# 列出所有可用方案
+python3 tools/import_suite.py --list
+
+# 导入方案到指定项目
+python3 tools/import_suite.py hermes-fullstack --target /path/to/your-project
+
+# 检查配置一致性
+python3 tools/verify_suites.py
+
+# 自动修复问题
+python3 tools/verify_suites.py --fix
 ```
 
-**2. 在 OpenCode 中打开项目**
+## 预设样例
 
-在终端中进入项目目录后启动 OpenCode：
+`suites/` 目录包含 4 套预设样例，供参考和快速上手：
 
-```bash
-cd ~/Desktop/projects/hermes-agents
-opencode
-```
+| 方案 | Agent 数量 | 适用场景 |
+|------|-----------|---------|
+| **hermes-fullstack** | 7 个 | 全栈开发：架构设计 + 编码 + 审查 + 执行 + 调研 |
+| **lite-review** | 3 个 | 轻量审查：代码探索 + 审查 |
+| **doc-writer** | 3 个 | 文档写作：调研 + 文档审查 |
+| **mini-runner** | 3 个 | 极简执行：编码 + 命令执行 |
 
-或通过 OpenCode UI 打开该目录作为工作区。
+这些样例展示了如何配置不同职责的 Agent，您可以根据实际需求修改或创建新配置。
 
-**3. 切换到 Hermes 主代理**
+## Agent 配置说明
 
-在 OpenCode 会话中，按 **Tab** 键切换到 **Hermes** 代理。
+每个 Agent 配置包含以下字段：
 
-**4. 开始使用**
+### 基本信息
 
-直接向 Hermes 描述你的需求，例如：
+| 字段 | 说明 | 示例 |
+|------|------|------|
+| `name` | Agent 名称（文件名） | `hermes`, `coder` |
+| `mode` | 模式 | `primary`（主代理）或 `subagent`（子代理） |
+| `description` | 描述 | 简要说明 Agent 的功能 |
+| `model` | 使用的模型 | `opencode/gpt-5.1-codex` |
+| `color` | 显示颜色 | `#D4A017` |
+| `temperature` | 温度参数 | 0.0 ~ 1.0 |
+| `max_iterations` | 最大迭代次数 | 10 ~ 30 |
 
-- "给这个项目添加用户认证功能"
-- "帮我审查 src/ 下所有代码的质量"
-- "调研 React 19 的新特性并评估是否值得升级"
-- "运行项目测试套件并修复失败的测试"
+### 工具配置
 
-Hermes 会自动分析需求、拆分任务、调度专业子代理，并整合结果交付给你。
-
-## 代理详解
-
-### Hermes — 总调度官
-
-**主代理 (primary)**，负责接收用户输入、理解意图、拆解任务、调度子代理、整合结果。
-
-- 权限：只读（可阅读文件和搜索代码库）
-- 核心工具：Task（调度子代理）、todo_write（任务追踪）
-- 不写代码、不执行命令、不修改文件
-
-### Scout — 代码探索专家
-
-**子代理 (subagent)**，快速搜索代码库、查找文件、回答代码库问题。
-
-- 权限：只读
-- 工具：read, list, grep, glob
-- 适用：找文件、搜代码、了解项目结构
-- 不适用：写代码、执行命令、联网搜索
-
-### Architect — 架构设计专家
-
-**子代理 (subagent)**，分析需求、设计系统架构、输出技术方案文档。
-
-- 权限：只读 + 联网
-- 工具：read, list, grep, glob, web_search, web_fetch
-- 适用：系统架构设计、技术选型、方案对比
-- 不适用：写代码、代码审查
-
-### Coder — 代码编写专家
-
-**子代理 (subagent)**，实际编写代码、修改文件、运行测试。
-
-- 权限：读写 + 命令执行
-- 工具：read, write, edit, list, grep, glob, bash, todo_write
-- 适用：编写新功能、修复 Bug、重构代码
-- 注意：edit 和 bash 需要用户确认（ask）
-
-### Reviewer — 代码审查专家
-
-**子代理 (subagent)**，审查代码质量、安全、性能、可维护性。
-
-- 权限：只读
-- 工具：read, list, grep, glob, web_search
-- 适用：代码审查、安全审计、性能分析
-- 不适用：修改代码、执行命令
-
-### ShellRunner — 命令行专家
-
-**子代理 (subagent)**，执行 Shell 命令、运行脚本、管理环境。
-
-- 权限：命令执行
-- 工具：bash, read, list
-- 适用：运行脚本、安装依赖、环境管理、Git 操作
-- 注意：bash 需要用户确认（ask）
-
-### Researcher — 调研检索专家
-
-**子代理 (subagent)**，联网搜索、阅读文档、总结分析。
-
-- 权限：只读 + 联网
-- 工具：web_search, web_fetch, read
-- 适用：技术调研、文档查询、方案对比
-- 不适用：写代码、执行命令
-
-## 定制化
-
-### 修改代理模型
-
-编辑对应 Markdown 文件的 YAML frontmatter 中的 `model` 字段：
+在 `tools` 字段中声明 Agent 可使用的工具：
 
 ```yaml
-model: anthropic/claude-sonnet-4-20250514
+tools:
+  read: true       # 读取文件
+  write: true      # 创建文件
+  edit: true       # 编辑文件
+  bash: true       # 执行命令
+  list: true       # 列出目录
+  grep: true       # 搜索代码
+  glob: true       # 文件名匹配
+  todo_write: true # 任务管理
+  task: true       # 调用子代理
+  web_search: true # 联网搜索
+  web_fetch: true  # 获取网页
 ```
 
-### 修改代理权限
+### 技能关联
 
-编辑 `permissions` 字段：
+在 `skills` 字段中声明 Agent 可使用的技能：
+
+```yaml
+skills:
+  - suite-manager      # 方案管理技能
+  - hermes-import      # 方案导入技能
+  - task-planner       # 任务规划技能
+  - test-generator     # 测试生成技能
+  - security-checklist # 安全审查技能
+  - tech-comparison    # 技术对比技能
+```
+
+### 权限配置
+
+在 `permissions` 字段中控制敏感操作：
 
 ```yaml
 permissions:
-  edit: allow     # allow / ask / deny
-  bash: allow     # allow / ask / deny
-  webfetch: allow # allow / ask / deny
+  skill: allow    # allow / ask / deny
+  edit: ask       # allow / ask / deny
+  bash: ask       # allow / ask / deny
+  webfetch: deny  # allow / ask / deny
 ```
 
-### 添加新代理
-
-1. 在 `.opencode/agents/` 下创建新的 `.md` 文件
-2. 编写 YAML frontmatter 配置和系统提示词正文
-3. 在 `opencode.json` 的 `agents` 字段注册新代理
-4. 在 `hermes.md` 的调度决策表中添加映射规则
-
-### 修改代理颜色
-
-编辑 `color` 字段，支持十六进制颜色值或主题颜色：
-
-```yaml
-color: "#FF5733"  # 自定义颜色
-color: "success"  # 主题颜色
-```
-
-## 常见问题
-
-### Q: 如何让 Hermes 不调度某个子代理？
-
-在 `opencode.json` 中将该子代理的 `hidden` 设为 `true`，或在 Hermes 的 `permissions` 中限制 task 调用范围。
-
-### Q: 能否让某个子代理完全自动运行，不弹确认？
-
-将对应权限设为 `allow`：
-
-```yaml
-permissions:
-  edit: allow
-  bash: allow
-```
-
-### Q: 如何查看子代理的工作过程？
-
-使用 `<Leader>+Right`（或配置的 `session_child_cycle` 快捷键）在父会话和子会话之间切换，查看子代理的工作详情。
-
-### Q: 子代理可以互相调用吗？
-
-默认配置中子代理没有 Task 工具权限，不可互相调用。如需启用，在对应代理的 `tools` 中添加 `task: true`。
+- `allow` — 自动执行，无需确认
+- `ask` — 每次询问用户
+- `deny` — 禁止使用
 
 ## 项目结构
 
 ```
 hermes-agents/
-├── opencode.json              # 项目配置（代理注册、权限、工具）
-├── config-tool.html           # 🔥 可视化配置工具（单文件 Web 应用）
-├── AGENTS.md                  # 开发者文档
-├── README.md                  # 本文件
-├── suites/                    # 多套方案隔离存放
-│   ├── hermes-fullstack/      # Hermes 全栈开发套件（7 Agent）
-│   ├── lite-review/           # 轻量审查套件（3 Agent）
-│   ├── doc-writer/            # 文档写作套件（3 Agent）
-│   └── mini-runner/           # 极简执行套件（3 Agent）
+├── config-tool.html           # 可视化配置工具（单文件 Web 应用）
+├── opencode.json              # 项目配置（代理注册）
+├── suites/                    # 预设方案样例
+│   ├── hermes-fullstack/      # 全栈开发样例
+│   ├── lite-review/           # 轻量审查样例
+│   ├── doc-writer/            # 文档写作样例
+│   └── mini-runner/           # 极简执行样例
 ├── tools/                     # 辅助脚本
-│   ├── _shared.py             # 公共模块（YAML 解析、字段验证、文件操作等）
-│   ├── import_suite.py        # 命令行方案导入脚本（支持回滚 + suites 同步）
-│   └── verify_suites.py       # suites 配置一致性检查脚本（支持 --fix 自动修复）
+│   ├── _shared.py             # 公共模块
+│   ├── import_suite.py        # 方案导入脚本
+│   └── verify_suites.py       # 配置验证脚本
+├── skills/                    # 配置工具专用技能（不随方案导入）
+│   ├── suite-manager/         # 方案管理技能
+│   ├── hermes-import/         # 方案导入技能
+│   ├── task-planner/          # 任务规划技能
+│   ├── test-generator/        # 测试生成技能
+│   ├── security-checklist/    # 安全审查技能
+│   └── tech-comparison/       # 技术对比技能
 └── .opencode/
-    ├── agents/                # 当前激活的 Agent（可被覆盖）
-    └── skill/hermes-import/   # OpenCode Skill：导入方案
-        └── SKILL.md
+    └── agents/                # Agent 配置文件
 ```
 
-## 使用 OpenCode Skill 导入方案
+## 常见问题
 
-项目包含一个 OpenCode Skill，可在任何 OpenCode 项目中导入 Hermes Agents 方案。
+### Q: 如何创建自己的 Agent 配置？
 
-### 安装 Skill
+1. 打开 `config-tool.html`
+2. 点击「+ 新建」创建新 Agent
+3. 填写基本信息、选择工具、配置权限
+4. 编写系统提示词
+5. 点击「导出到 suites/」保存
 
-1. 将 `.opencode/skill/hermes-import/SKILL.md` 复制到你的目标 OpenCode 项目目录：
-   ```bash
-   cp -r .opencode/skill/hermes-import ~/your-project/.opencode/skill/
-   ```
+### Q: 如何将配置应用到 OpenCode 项目？
 
-2. 重启 OpenCode 或执行 `/skill reload`
+**方法一：** 在 `config-tool.html` 中点击「写入 suites & OpenCode」，选择目标项目目录
 
-### 使用 Skill
-
-在 OpenCode 中，直接说：
-
-- "导入 hermes 全栈方案"
-- "使用 lite-review 套件"
-- "导入 doc-writer 方案"
-- "导入 mini-runner 套件"
-
-Skill 会自动定位 hermes-agents 项目，调用 `tools/import_suite.py` 执行复制和 opencode.json 更新。
-
-### 命令行导入
-
-如果需要在 OpenCode 之外使用，可以直接运行 Python 脚本：
-
+**方法二：** 使用命令行：
 ```bash
-# 列出所有可用方案
-python tools/import_suite.py --list
-
-# 导入到指定项目
-python tools/import_suite.py hermes-fullstack --target /path/to/your-project
-python tools/import_suite.py lite-review --target .
-
-# 导入并跳过同步到项目自身的 suites/ 目录
-python tools/import_suite.py hermes-fullstack --target . --no-sync
+python3 tools/import_suite.py hermes-fullstack --target /path/to/your-project
 ```
 
-脚本会自动：
-- 复制 agent .md 文件到 `.opencode/agents/`
-- 解析 YAML frontmatter 提取配置并校验字段完整性
-- 合并更新 `opencode.json`（保留已有字段）
-- **同步到项目自身的 `suites/` 目录**（可用 `--no-sync` 跳过）
-- **导入失败时自动回滚** — 删除已复制的文件、恢复 opencode.json 备份
+然后在 OpenCode 中执行 `/agents reload`
 
-### 检查与修复配置一致性
+### Q: 如何分享我的 Agent 配置？
 
-```bash
-# 检查所有方案配置
-python tools/verify_suites.py
+在 `config-tool.html` 中点击「📤 导出方案」，会生成一个 JSON 文件，发送给他人后，对方点击「📥 导入方案」即可导入。
 
-# 自动修复发现的问题（备份原始文件为 .md.bak）
-python tools/verify_suites.py --fix
-```
+### Q: 配置验证失败怎么办？
 
-检查项包括：
-- YAML frontmatter 是否存在且合法
-- 必要字段（description, model, mode, color, temperature, max_iterations）是否完整
-- temperature / max_iterations 是否在合理范围内
-- 跨方案同名 Agent 的配置是否一致
+运行 `python3 tools/verify_suites.py --fix` 自动修复常见问题。
 
-`--fix` 模式会自动修复以下问题：
-- 缺失字段 → 填充默认值
-- temperature/max_iterations 越界 → 裁切到合理范围
-- 无效 mode → 回退为 subagent
+## 技能扩展
 
-> 修复前会自动备份原始文件为 `.md.bak`。
+项目内置 6 个技能，位于 `skills/` 目录（配置工具专用，不随方案导入）：
 
-## 故障排除
+| 技能 | 用途 |
+|------|------|
+| `suite-manager` | 方案管理：列出、切换、卸载 |
+| `hermes-import` | 方案导入 |
+| `task-planner` | 任务规划与拆解 |
+| `test-generator` | 系统化测试生成 |
+| `security-checklist` | 安全审查清单 |
+| `tech-comparison` | 结构化技术对比 |
 
-| 问题 | 可能原因 | 解决方案 |
-|------|---------|---------|
-| Skill 提示找不到 suites/ 目录 | hermes-agents 项目不在默认路径 | 执行 `find ~ -name "hermes-agents" -maxdepth 4 -type d` 定位实际路径，或使用命令行导入 |
-| 导入后 agent 不生效 | OpenCode 未重新加载 | 在 OpenCode 中执行 `/agents reload` |
-| `opencode.json` 配置损坏 | JSON 格式错误被覆盖 | 备份原文件后重新导入，脚本会合并而非覆盖 |
-| config-tool.html 无法保存 | 浏览器不支持 localStorage | 更换现代浏览器（Chrome/Firefox/Edge 最新版） |
-| 「写入 suites & OpenCode」失败 | 浏览器不支持 File System Access API | 使用「导出到 suites/」降级到下载模式，然后手动放入目录 |
-| 跨方案同名 agent 颜色不一致 | suits/ 和预设数据不同步 | 运行 `python tools/verify_suites.py` 检查，然后用 config-tool 的「从 suites 加载」同步 |
-| 预设方案 agent 数量不对 | localStorage 旧数据残留 | 点击「清空当前方案」，然后「加载预设」重新导入 |
+创建新技能：在 `skills/` 下创建目录和 `SKILL.md` 文件。
 
 ## 许可证
 

@@ -285,6 +285,20 @@ body { display:flex; flex-direction:column; }
       <div class="tools-grid" id="toolsGrid"></div>
     </div>
     <div class="right-section">
+      <h4>🎯 技能关联</h4>
+      <div class="tools-grid" id="skillsGrid"></div>
+      <div class="perms-row" style="margin-top:8px">
+        <div class="perm-group">
+          <label>Skill 权限</label>
+          <select id="permSkill" onchange="onFieldChange()">
+            <option value="deny">deny</option>
+            <option value="ask">ask</option>
+            <option value="allow">allow</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="right-section">
       <h4>🔐 权限配置</h4>
       <div class="perms-row">
         <div class="perm-group">
@@ -351,6 +365,15 @@ const ALL_TOOLS = [
   { key:'webfetch',   icon:'🔗', label:'webfetch',   desc:'网页抓取(旧)' },
 ];
 
+const ALL_SKILLS = [
+  { key:'suite-manager',      label:'suite-manager',      desc:'方案管理：列出、切换、卸载' },
+  { key:'hermes-import',     label:'hermes-import',     desc:'方案导入技能' },
+  { key:'task-planner',      label:'task-planner',      desc:'多 Agent 任务规划与拆解' },
+  { key:'test-generator',    label:'test-generator',    desc:'系统化测试生成' },
+  { key:'security-checklist', label:'security-checklist', desc:'安全审查清单' },
+  { key:'tech-comparison',   label:'tech-comparison',   desc:'结构化技术对比' },
+];
+
 // =========== PRESET DATA ===========
 // Suite name → folder name mapping (for suites/ directory)
 const SUITE_FOLDER_MAP = {
@@ -392,6 +415,7 @@ const SUITE_PRESETS = {
 - 本人不写代码、不执行命令、不修改文件
 - 价值在于调度智慧：选择正确代理、执行顺序、任务拆分粒度`,
     tools:{ task:true, read:true, list:true, grep:true, glob:true, todo_write:true },
+    skills:['suite-manager', 'hermes-import', 'task-planner'],
     perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
   },
   { name:'scout', mode:'subagent', color:'#2E86C1', temp:0.0, maxIter:10, model:'opencode/gpt-5.1-codex', hidden:false,
@@ -418,6 +442,7 @@ const SUITE_PRESETS = {
 - 绝不联网
 - 搜索结果为空时明确告知，并建议替代策略`,
     tools:{ read:true, list:true, grep:true, glob:true },
+    skills:[],
     perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
   },
   { name:'architect', mode:'subagent', color:'#8E44AD', temp:0.3, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
@@ -441,6 +466,7 @@ const SUITE_PRESETS = {
 - 不执行命令
 - 所有设计决策必须有理由`,
     tools:{ read:true, list:true, grep:true, glob:true, web_search:true, web_fetch:true },
+    skills:[],
     perms:{ edit:'deny', bash:'deny', webfetch:'allow' }
   },
   { name:'coder', mode:'subagent', color:'#27AE60', temp:0.2, maxIter:25, model:'opencode/gpt-5.1-codex', hidden:false,
@@ -469,6 +495,7 @@ const SUITE_PRESETS = {
 - 先读后写，运行测试后再交付
 - 不做架构决策、不做代码审查`,
     tools:{ read:true, write:true, edit:true, list:true, grep:true, glob:true, bash:true, todo_write:true },
+    skills:['test-generator'],
     perms:{ edit:'ask', bash:'ask', webfetch:'deny' }
   },
   { name:'reviewer', mode:'subagent', color:'#E74C3C', temp:0.1, maxIter:12, model:'opencode/gpt-5.1-codex', hidden:false,
@@ -498,6 +525,7 @@ const SUITE_PRESETS = {
 ## 约束
 - 只审查不修改，建设性优先`,
     tools:{ read:true, list:true, grep:true, glob:true, web_search:true },
+    skills:['security-checklist'],
     perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
   },
   { name:'shellrunner', mode:'subagent', color:'#E67E22', temp:0.1, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
@@ -526,6 +554,7 @@ const SUITE_PRESETS = {
 - 不修改代码文件（无 edit 权限）
 - 安全命令优先，如实报告`,
     tools:{ bash:true, read:true, list:true },
+    skills:[],
     perms:{ edit:'deny', bash:'ask', webfetch:'deny' }
   },
   { name:'researcher', mode:'subagent', color:'#17A589', temp:0.3, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
@@ -555,6 +584,7 @@ const SUITE_PRESETS = {
 - 区别事实与观点
 - 标注时效性`,
     tools:{ web_search:true, web_fetch:true, read:true },
+    skills:['tech-comparison'],
     perms:{ edit:'deny', bash:'deny', webfetch:'allow' }
   }]
   },
@@ -563,18 +593,21 @@ const SUITE_PRESETS = {
       desc:'Hermes-Lite - 轻量审查套件的调度官。负责代码探索和审查任务的协调。',
       prompt:'# Hermes-Lite — 轻量审查调度官\n\n## 角色定位\n你是 Hermes-Lite，轻量审查套件的总调度官。专注于代码探索和审查任务。\n\n## 调度决策\n| 用户意图 | 优先派发 |\n|---------|--------|\n| 查找文件/代码 | Scout |\n| 审查代码 | Reviewer |\n| 探索+审查 | Scout → Reviewer |\n\n## 约束\n- 不写代码、不执行命令、不修改文件',
       tools:{ task:true, read:true, list:true, todo_write:true },
+      skills:['suite-manager', 'task-planner'],
       perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
     },
     { name:'scout', mode:'subagent', color:'#2E86C1', temp:0.0, maxIter:10, model:'opencode/gpt-5.1-codex', hidden:false,
       desc:'Scout - 代码探索专家。快速搜索代码库、查找文件。只读。',
       prompt:'# Scout — 代码探索专家\n\n快速搜索代码库，查找文件和关键字。只读，不修改文件。',
       tools:{ read:true, list:true, grep:true, glob:true },
+      skills:[],
       perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
     },
     { name:'reviewer', mode:'subagent', color:'#E74C3C', temp:0.1, maxIter:12, model:'opencode/gpt-5.1-codex', hidden:false,
       desc:'Reviewer - 代码审查专家。审查代码质量、安全漏洞、性能问题。只读。',
       prompt:'# Reviewer — 代码审查专家\n\n审查代码质量、安全漏洞、性能问题。只做审查不写代码。',
       tools:{ read:true, list:true, grep:true, glob:true },
+      skills:['security-checklist'],
       perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
     }
   ]},
@@ -583,18 +616,21 @@ const SUITE_PRESETS = {
       desc:'Hermes-Doc - 文档写作套件的调度官。负责调研和文档写作任务协调。',
       prompt:'# Hermes-Doc — 文档写作调度官\n\n## 角色定位\n你是 Hermes-Doc，文档写作套件的总调度官。专注于技术调研和文档写作任务。\n\n## 调度决策\n| 用户意图 | 优先派发 |\n|---------|--------|\n| 技术调研 | Researcher |\n| 文档审查 | Reviewer |\n| 调研+审查 | Researcher → Reviewer |\n\n## 约束\n- 不写代码、不执行命令、不修改文件',
       tools:{ task:true, read:true, list:true, todo_write:true },
+      skills:['suite-manager', 'task-planner'],
       perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
     },
     { name:'researcher', mode:'subagent', color:'#17A589', temp:0.3, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
       desc:'Researcher - 深度调研与信息检索专家。联网搜索、阅读文档、总结分析。只读。',
       prompt:'# Researcher — 深度调研与信息检索专家\n\n获取外部信息、阅读本地文档、整合分析总结，输出高质量研究报告。',
       tools:{ web_search:true, web_fetch:true, read:true },
+      skills:['tech-comparison'],
       perms:{ edit:'deny', bash:'deny', webfetch:'allow' }
     },
     { name:'reviewer', mode:'subagent', color:'#E74C3C', temp:0.1, maxIter:12, model:'opencode/gpt-5.1-codex', hidden:false,
       desc:'Reviewer - 文档审查专家。审查文档结构和内容。只读。',
       prompt:'# Reviewer — 文档审查专家\n\n审查文档质量、结构和内容准确性。只做审查不写内容。',
       tools:{ read:true, list:true },
+      skills:[],
       perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
     }
   ]},
@@ -603,18 +639,21 @@ const SUITE_PRESETS = {
       desc:'Hermes-Mini - 极简执行套件的调度官。快速分派编码和命令执行任务。',
       prompt:'# Hermes-Mini — 极简执行调度官\n\n## 角色定位\n你是 Hermes-Mini，极简执行套件的总调度官。专注于快速编码和命令执行。\n\n## 调度决策\n| 用户意图 | 优先派发 |\n|---------|--------|\n| 编写代码 | Coder |\n| 执行命令/脚本 | ShellRunner |\n| 编码+运行 | Coder → ShellRunner |\n\n## 约束\n- 不亲自写代码、不执行命令',
       tools:{ task:true, read:true, list:true, todo_write:true },
+      skills:['suite-manager', 'task-planner'],
       perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
     },
     { name:'coder', mode:'subagent', color:'#27AE60', temp:0.2, maxIter:25, model:'opencode/gpt-5.1-codex', hidden:false,
       desc:'Coder - 代码编写与重构专家。实际编写代码、修改文件。',
       prompt:'# Coder — 代码编写与重构专家\n\n编写高质量、可运行的代码。先读后写，最小修改原则。',
       tools:{ read:true, write:true, edit:true, list:true, grep:true, glob:true, bash:true, todo_write:true },
+      skills:['test-generator'],
       perms:{ edit:'ask', bash:'ask', webfetch:'deny' }
     },
     { name:'shellrunner', mode:'subagent', color:'#E67E22', temp:0.1, maxIter:15, model:'opencode/gpt-5.1-codex', hidden:false,
       desc:'ShellRunner - 命令行与脚本执行专家。执行 shell 命令、运行脚本。',
       prompt:'# ShellRunner — 命令行与脚本执行专家\n\n执行系统命令、运行脚本、管理环境。可逆优先，如实报告。',
       tools:{ bash:true, read:true, list:true },
+      skills:[],
       perms:{ edit:'deny', bash:'ask', webfetch:'deny' }
     }
   ]}
@@ -649,17 +688,67 @@ function parseFrontmatter(text) {
   if (!match) return {};
   const result = {};
   const yamlStr = match[1];
+  const keyPath = [];
+
+  function setNested(path, key, value) {
+    let obj = result;
+    for (const p of path) {
+      if (!(p in obj)) obj[p] = {};
+      obj = obj[p];
+    }
+    obj[key] = value;
+  }
+
   for (const line of yamlStr.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
+
+    // Detect list item: - value
+    if (trimmed.startsWith('- ')) {
+      const val = trimmed.substring(2).trim().replace(/^["']|["']$/g, '');
+      if (keyPath.length > 0) {
+        let obj = result;
+        for (const p of keyPath.slice(0, -1)) {
+          if (!(p in obj)) obj[p] = {};
+          obj = obj[p];
+        }
+        const pk = keyPath[keyPath.length - 1];
+        if (!(pk in obj) || typeof obj[pk] !== 'object' || Array.isArray(obj[pk])) {
+          if (!(pk in obj)) obj[pk] = [];
+          if (!Array.isArray(obj[pk])) obj[pk] = [obj[pk]];
+          obj[pk].push(val);
+        } else {
+          obj[pk] = [val];
+        }
+      }
+      continue;
+    }
+
     const idx = trimmed.indexOf(':');
     if (idx === -1) continue;
     const key = trimmed.substring(0, idx).trim();
-    let value = trimmed.substring(idx + 1).trim().replace(/^["']|["']$/g, '');
+    let value = trimmed.substring(idx + 1).trim();
+
+    // Determine indent level
+    const indent = line.length - line.trimStart().length;
+    const level = Math.floor(indent / 2);
+
+    // If value is empty (nested key), push to stack
+    if (value === '') {
+      keyPath.length = level;
+      keyPath.push(key);
+      continue;
+    }
+
+    // Parse simple value
+    value = value.replace(/^["']|["']$/g, '');
     if (value === 'true') value = true;
     else if (value === 'false') value = false;
     else if (/^-?\d+(\.\d+)?$/.test(value)) value = parseFloat(value);
-    result[key] = value;
+
+    // Set at the current nesting level
+    const path = keyPath.slice(0, level);
+    setNested(path, key, value);
   }
   return result;
 }
@@ -691,6 +780,14 @@ function buildToolsGrid() {
       <input type="checkbox" data-tool="${t.key}" onchange="onFieldChange()">
       <span class="tool-icon">${t.icon}</span>
       <span class="tool-name">${t.label}</span>
+    </label>
+  `).join('');
+
+  const skillsGrid = document.getElementById('skillsGrid');
+  skillsGrid.innerHTML = ALL_SKILLS.map(t => `
+    <label class="tool-check" title="${t.desc}">
+      <input type="checkbox" data-skill="${t.key}" onchange="onFieldChange()">
+      <span class="tool-name" style="margin-left:22px">${t.label}</span>
     </label>
   `).join('');
 }
@@ -797,7 +894,15 @@ function selectAgent(name) {
     cb.checked = a.tools && a.tools[cb.dataset.tool] === true;
   });
 
+  // Skills
+  const skillChecks = document.querySelectorAll('#skillsGrid input[type="checkbox"]');
+  const agentSkills = a.skills || [];
+  skillChecks.forEach(cb => {
+    cb.checked = agentSkills.includes(cb.dataset.skill);
+  });
+
   // Permissions
+  document.getElementById('permSkill').value = (a.perms && a.perms.skill) || 'deny';
   document.getElementById('permEdit').value = (a.perms && a.perms.edit) || 'deny';
   document.getElementById('permBash').value = (a.perms && a.perms.bash) || 'deny';
   document.getElementById('permWebfetch').value = (a.perms && a.perms.webfetch) || 'deny';
@@ -815,6 +920,10 @@ function collectAgentData(fromForm) {
   const tools = {};
   toolChecks.forEach(cb => { tools[cb.dataset.tool] = cb.checked; });
 
+  const skillChecks = document.querySelectorAll('#skillsGrid input[type="checkbox"]');
+  const skills = [];
+  skillChecks.forEach(cb => { if (cb.checked) skills.push(cb.dataset.skill); });
+
   return {
     name: fromForm ? name : (currentAgent || ''),
     mode: fromForm ? document.getElementById('cfgMode').value : (A()[currentAgent]?.mode || 'subagent'),
@@ -826,7 +935,9 @@ function collectAgentData(fromForm) {
     hidden: fromForm ? document.getElementById('cfgHidden').checked : (A()[currentAgent]?.hidden || false),
     prompt: fromForm ? document.getElementById('cfgPrompt').value : (A()[currentAgent]?.prompt || ''),
     tools,
+    skills,
     perms: {
+      skill: fromForm ? document.getElementById('permSkill').value : (A()[currentAgent]?.perms?.skill || 'deny'),
       edit: fromForm ? document.getElementById('permEdit').value : (A()[currentAgent]?.perms?.edit || 'deny'),
       bash: fromForm ? document.getElementById('permBash').value : (A()[currentAgent]?.perms?.bash || 'deny'),
       webfetch: fromForm ? document.getElementById('permWebfetch').value : (A()[currentAgent]?.perms?.webfetch || 'deny'),
@@ -881,7 +992,12 @@ function generateMarkdown(a) {
   }
 
   const perms = a.perms || {};
+  if (a.skills && a.skills.length > 0) {
+    lines.push('skills:');
+    a.skills.forEach(s => lines.push(`  - ${s}`));
+  }
   lines.push('permissions:');
+  lines.push(`  skill: ${perms.skill || 'deny'}`);
   lines.push(`  edit: ${perms.edit || 'deny'}`);
   lines.push(`  bash: ${perms.bash || 'deny'}`);
   lines.push(`  webfetch: ${perms.webfetch || 'deny'}`);
@@ -944,7 +1060,8 @@ function agentNew() {
     name, mode:'subagent', color:'#6c7bff', temp:0.2, maxIter:15,
     model:'opencode/gpt-5.1-codex', hidden:false, desc:'', prompt:'',
     tools:{ read:true, list:true },
-    perms:{ edit:'deny', bash:'deny', webfetch:'deny' }
+    skills:[],
+    perms:{ skill:'deny', edit:'deny', bash:'deny', webfetch:'deny' }
   };
   saveToStorage();
   renderAgentList();
@@ -1040,6 +1157,7 @@ function loadPresetSuite(suiteName) {
         desc: p.desc,
         prompt: p.prompt,
         tools: { ...p.tools },
+        skills: p.skills ? [...p.skills] : [],
         perms: { ...p.perms }
       };
       count++;
@@ -1357,6 +1475,7 @@ async function updateOpencodeJson(opencodeHandle, agentKeys) {
       ...(agent.hidden ? { hidden: true } : {}),
       tools: Object.fromEntries(Object.entries(agent.tools || {}).filter(([_, v]) => v)),
       permissions: {
+        skill: (agent.perms && agent.perms.skill) || 'deny',
         edit: (agent.perms && agent.perms.edit) || 'deny',
         bash: (agent.perms && agent.perms.bash) || 'deny',
         webfetch: (agent.perms && agent.perms.webfetch) || 'deny'
@@ -1712,7 +1831,8 @@ async function loadSuiteFromHandle(idx) {
         desc: fm.description || '',
         prompt: text.replace(/^---[\s\S]*?---\n*/, ''),
         tools: fm.tools || {},
-        perms: fm.permissions || { edit:'deny', bash:'deny', webfetch:'deny' }
+        skills: fm.skills || [],
+        perms: fm.permissions || { skill:'deny', edit:'deny', bash:'deny', webfetch:'deny' }
       };
     } catch(e) {
       toast(`读取 ${filename} 失败: ${e.message}`, 'error');
@@ -1804,7 +1924,8 @@ function importSuiteJson() {
             desc: agent.desc || '',
             prompt: agent.prompt || '',
             tools: agent.tools || { read: true, list: true },
-            perms: agent.perms || { edit: 'deny', bash: 'deny', webfetch: 'deny' }
+            skills: agent.skills || [],
+            perms: agent.perms || { skill:'deny', edit: 'deny', bash: 'deny', webfetch: 'deny' }
           };
           count++;
         });

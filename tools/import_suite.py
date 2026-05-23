@@ -34,6 +34,7 @@ from _shared import (
     update_opencode_json,
     validate_frontmatter,
     sync_to_root_suites,
+    uninstall_suite,
 )
 
 
@@ -166,11 +167,13 @@ def main():
   python tools/import_suite.py hermes-fullstack --target /path/to/my-project
   python tools/import_suite.py lite-review --target .
   python tools/import_suite.py --list
+  python tools/import_suite.py --uninstall --target /path/to/my-project
         '''
     )
     parser.add_argument('suite', nargs='?', help='方案名称')
     parser.add_argument('--target', '-t', default='.', help='目标 OpenCode 项目路径（默认当前目录）')
     parser.add_argument('--list', '-l', action='store_true', help='列出所有可用方案')
+    parser.add_argument('--uninstall', '-u', action='store_true', help='卸载目标项目的所有 agent 配置')
     parser.add_argument('--no-sync', action='store_true', help='不同步到项目自身的 suites/ 目录')
 
     args = parser.parse_args()
@@ -188,6 +191,25 @@ def main():
             names = [a['stem'] for a in agents]
             print(f"  {s}: {', '.join(names)}")
         return
+
+    if args.uninstall:
+        target_dir = Path(args.target).resolve()
+        if not target_dir.exists():
+            print(f"错误: 目标目录 '{target_dir}' 不存在。", file=sys.stderr)
+            sys.exit(1)
+
+        deleted, json_ok = uninstall_suite(target_dir)
+        print(f"卸载完成!")
+        if deleted:
+            print(f"  已删除 {len(deleted)} 个 agent 文件:")
+            for f in deleted:
+                print(f"    - {f}")
+        else:
+            print("  未找到 agent 文件")
+        if json_ok:
+            print("  已清空 opencode.json 中的 agents 配置")
+        print("\n请在 OpenCode 中执行 /agents reload 使配置生效。")
+        sys.exit(0)
 
     if not args.suite:
         parser.print_help()

@@ -12,7 +12,12 @@ tools:
   grep: true
   glob: true
   todo_write: true
+skills:
+  - suite-manager
+  - hermes-import
+  - task-planner
 permissions:
+  skill: allow
   edit: deny
   bash: deny
   webfetch: deny

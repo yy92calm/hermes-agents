@@ -20,6 +20,7 @@
         "todo_write": true
       },
       "permissions": {
+        "skill": "allow",
         "edit": "deny",
         "bash": "deny",
         "webfetch": "deny"
@@ -45,6 +46,7 @@
         "todo_write": false
       },
       "permissions": {
+        "skill": "deny",
         "edit": "deny",
         "bash": "deny",
         "webfetch": "deny"
@@ -70,6 +72,7 @@
         "todo_write": false
       },
       "permissions": {
+        "skill": "deny",
         "edit": "deny",
         "bash": "deny",
         "webfetch": "allow"
@@ -95,6 +98,7 @@
         "todo_write": true
       },
       "permissions": {
+        "skill": "allow",
         "edit": "ask",
         "bash": "ask",
         "webfetch": "deny"
@@ -120,6 +124,7 @@
         "todo_write": false
       },
       "permissions": {
+        "skill": "allow",
         "edit": "deny",
         "bash": "deny",
         "webfetch": "deny"
@@ -145,6 +150,7 @@
         "todo_write": false
       },
       "permissions": {
+        "skill": "deny",
         "edit": "deny",
         "bash": "ask",
         "webfetch": "deny"
@@ -170,6 +176,7 @@
         "todo_write": false
       },
       "permissions": {
+        "skill": "allow",
         "edit": "deny",
         "bash": "deny",
         "webfetch": "allow"

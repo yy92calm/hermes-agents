@@ -14,7 +14,10 @@ tools:
   glob: true
   bash: true
   todo_write: true
+skills:
+  - test-generator
 permissions:
+  skill: allow
   edit: ask
   bash: ask
   webfetch: deny

@@ -11,7 +11,10 @@ tools:
   grep: true
   glob: true
   web_search: true
+skills:
+  - security-checklist
 permissions:
+  skill: allow
   edit: deny
   bash: deny
   webfetch: deny

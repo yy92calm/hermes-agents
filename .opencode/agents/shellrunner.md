@@ -10,6 +10,7 @@ tools:
   read: true
   list: true
 permissions:
+  skill: deny
   edit: deny
   bash: ask
   webfetch: deny

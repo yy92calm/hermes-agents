@@ -9,7 +9,10 @@ tools:
   web_search: true
   web_fetch: true
   read: true
+skills:
+  - tech-comparison
 permissions:
+  skill: allow
   edit: deny
   bash: deny
   webfetch: allow

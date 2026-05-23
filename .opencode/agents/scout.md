@@ -11,6 +11,7 @@ tools:
   grep: true
   glob: true
 permissions:
+  skill: deny
   edit: deny
   bash: deny
   webfetch: deny
