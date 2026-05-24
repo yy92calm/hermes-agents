@@ -25,6 +25,35 @@ Hermes Agents 是一套用于维护 OpenCode 多 Agent 配置的工具集。它�
     └─────────┘    └──────────┘    └──────────┘
 ```
 
+## 使用方式
+
+### 1. 可视化配置工具
+
+打开 `config-tool.html` 进行可视化配置。
+
+### 2. 命令行工具（CLI）
+
+```bash
+# 方案管理
+python3 hermes-cli.py suite list                    # 列出所有可用方案
+python3 hermes-cli.py suite use hermes-fullstack    # 切换到指定方案
+python3 hermes-cli.py suite uninstall              # 卸载当前方案
+
+# Agent 管理
+python3 hermes-cli.py agent list                   # 列出当前 Agent
+python3 hermes-cli.py agent show coder             # 显示 Agent 详情
+python3 hermes-cli.py agent create my-agent        # 创建新 Agent
+python3 hermes-cli.py agent edit coder             # 编辑 Agent（打开编辑器）
+python3 hermes-cli.py agent delete my-agent        # 删除 Agent
+
+# 配置管理
+python3 hermes-cli.py config validate              # 验证配置
+python3 hermes-cli.py config export my-suite.json  # 导出为 JSON
+python3 hermes-cli.py config import my-suite.json  # 从 JSON 导入
+```
+
+### 3. 传统脚本
+
 ## 预设样例
 
 `suites/` 目录包含 4 套预设样例：
@@ -143,6 +172,7 @@ description: 技能描述
 ```
 hermes-agents/
 ├── config-tool.html           # 可视化配置工具（单文件 Web 应用）
+├── hermes-cli.py              # 命令行工具（CLI）
 ├── opencode.json              # 项目配置（代理注册）
 ├── AGENTS.md                  # 本文件（开发者文档）
 ├── README.md                  # 用户使用指南
@@ -205,4 +235,4 @@ hermes-agents/
 
 ## 版本
 
-v1.5.0 — 2026-05-24 支持全局技能目录：验证脚本检查 ~/.claude/skills/，文档说明技能来源
+v1.6.0 — 2026-05-24 新增 CLI 工具：支持方案管理、Agent 管理、配置导入导出

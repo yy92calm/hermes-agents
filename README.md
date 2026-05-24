@@ -39,7 +39,30 @@ open config-tool.html
 - 右侧勾选工具/技能 + 配置权限 + 实时 Markdown 预览
 - 智能输入防抖 — 编辑长文本时自动 200ms 防抖
 
-### 方式二：命令行工具
+### 方式二：命令行工具（CLI）
+
+项目提供完整的命令行工具 `hermes-cli.py`：
+
+```bash
+# 方案管理
+python3 hermes-cli.py suite list                    # 列出所有可用方案
+python3 hermes-cli.py suite use hermes-fullstack    # 切换到指定方案
+python3 hermes-cli.py suite uninstall              # 卸载当前方案
+
+# Agent 管理
+python3 hermes-cli.py agent list                   # 列出当前 Agent
+python3 hermes-cli.py agent show coder             # 显示 Agent 详情
+python3 hermes-cli.py agent create my-agent        # 创建新 Agent
+python3 hermes-cli.py agent edit coder             # 编辑 Agent（打开编辑器）
+python3 hermes-cli.py agent delete my-agent        # 删除 Agent
+
+# 配置管理
+python3 hermes-cli.py config validate              # 验证配置
+python3 hermes-cli.py config export my-suite.json  # 导出为 JSON
+python3 hermes-cli.py config import my-suite.json  # 从 JSON 导入
+```
+
+### 方式三：传统脚本
 
 ```bash
 # 列出所有可用方案
@@ -138,6 +161,7 @@ permissions:
 ```
 hermes-agents/
 ├── config-tool.html           # 可视化配置工具（单文件 Web 应用）
+├── hermes-cli.py              # 命令行工具（CLI）
 ├── opencode.json              # 项目配置（代理注册）
 ├── suites/                    # 预设方案样例
 │   ├── hermes-fullstack/      # 全栈开发样例

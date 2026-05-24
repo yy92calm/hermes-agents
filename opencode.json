@@ -2,21 +2,19 @@
   "$schema": "https://opencode.ai/config.json",
   "agents": {
     "hermes": {
-      "mode": "primary",
       "description": "Hermes - 多 Agent 协作框架的总调度指挥官。分析用户需求、拆解任务、调度子代理并整合结果。",
       "model": "opencode/gpt-5.1-codex",
+      "mode": "primary",
       "color": "#D4A017",
+      "temperature": 0.2,
+      "max_iterations": 30,
+      "hidden": false,
       "tools": {
         "task": true,
         "read": true,
         "list": true,
         "grep": true,
         "glob": true,
-        "write": false,
-        "edit": false,
-        "bash": false,
-        "web_search": false,
-        "web_fetch": false,
         "todo_write": true
       },
       "permissions": {
@@ -27,23 +25,18 @@
       }
     },
     "scout": {
-      "mode": "subagent",
       "description": "Scout - 代码探索专家。快速搜索代码库、查找文件、搜索关键字、回答代码库相关问题。只读。",
       "model": "opencode/gpt-5.1-codex",
+      "mode": "subagent",
       "color": "#2E86C1",
+      "temperature": 0.0,
+      "max_iterations": 10,
       "hidden": false,
       "tools": {
         "read": true,
         "list": true,
         "grep": true,
-        "glob": true,
-        "write": false,
-        "edit": false,
-        "bash": false,
-        "task": false,
-        "web_search": false,
-        "web_fetch": false,
-        "todo_write": false
+        "glob": true
       },
       "permissions": {
         "skill": "deny",
@@ -53,10 +46,12 @@
       }
     },
     "architect": {
-      "mode": "subagent",
       "description": "Architect - 架构设计与技术方案专家。分析需求、设计系统架构、输出方案文档。只读。",
       "model": "opencode/gpt-5.1-codex",
+      "mode": "subagent",
       "color": "#8E44AD",
+      "temperature": 0.3,
+      "max_iterations": 15,
       "hidden": false,
       "tools": {
         "read": true,
@@ -64,12 +59,7 @@
         "grep": true,
         "glob": true,
         "web_search": true,
-        "web_fetch": true,
-        "write": false,
-        "edit": false,
-        "bash": false,
-        "task": false,
-        "todo_write": false
+        "web_fetch": true
       },
       "permissions": {
         "skill": "deny",
@@ -79,10 +69,12 @@
       }
     },
     "coder": {
-      "mode": "subagent",
-      "description": "Coder - 代码编写与重构专家。实际编写代码、修改文件、运行测试。拥有代码编辑和命令执行能力。",
+      "description": "Coder - 代码编写与重构专家。实际编写代码、修改文件、运行测试。",
       "model": "opencode/gpt-5.1-codex",
+      "mode": "subagent",
       "color": "#27AE60",
+      "temperature": 0.2,
+      "max_iterations": 25,
       "hidden": false,
       "tools": {
         "read": true,
@@ -92,9 +84,6 @@
         "grep": true,
         "glob": true,
         "bash": true,
-        "task": false,
-        "web_search": false,
-        "web_fetch": false,
         "todo_write": true
       },
       "permissions": {
@@ -105,23 +94,19 @@
       }
     },
     "reviewer": {
-      "mode": "subagent",
       "description": "Reviewer - 代码审查专家。审查代码质量、安全漏洞、性能问题、可维护性。只读。",
       "model": "opencode/gpt-5.1-codex",
+      "mode": "subagent",
       "color": "#E74C3C",
+      "temperature": 0.1,
+      "max_iterations": 12,
       "hidden": false,
       "tools": {
         "read": true,
         "list": true,
         "grep": true,
         "glob": true,
-        "web_search": true,
-        "write": false,
-        "edit": false,
-        "bash": false,
-        "task": false,
-        "web_fetch": false,
-        "todo_write": false
+        "web_search": true
       },
       "permissions": {
         "skill": "allow",
@@ -131,23 +116,17 @@
       }
     },
     "shellrunner": {
-      "mode": "subagent",
-      "description": "ShellRunner - 命令行与脚本执行专家。执行 shell 命令、运行脚本、管理环境、自动化运维。",
+      "description": "ShellRunner - 命令行与脚本执行专家。执行 shell 命令、运行脚本、管理环境。",
       "model": "opencode/gpt-5.1-codex",
+      "mode": "subagent",
       "color": "#E67E22",
+      "temperature": 0.1,
+      "max_iterations": 15,
       "hidden": false,
       "tools": {
         "bash": true,
         "read": true,
-        "list": true,
-        "write": false,
-        "edit": false,
-        "grep": false,
-        "glob": false,
-        "task": false,
-        "web_search": false,
-        "web_fetch": false,
-        "todo_write": false
+        "list": true
       },
       "permissions": {
         "skill": "deny",
@@ -157,23 +136,17 @@
       }
     },
     "researcher": {
-      "mode": "subagent",
-      "description": "Researcher - 深度调研与信息检索专家。联网搜索、阅读文档、总结分析、技术调研。只读。",
+      "description": "Researcher - 深度调研与信息检索专家。联网搜索、阅读文档、总结分析。只读。",
       "model": "opencode/gpt-5.1-codex",
+      "mode": "subagent",
       "color": "#17A589",
+      "temperature": 0.3,
+      "max_iterations": 15,
       "hidden": false,
       "tools": {
         "web_search": true,
         "web_fetch": true,
-        "read": true,
-        "list": false,
-        "grep": false,
-        "glob": false,
-        "write": false,
-        "edit": false,
-        "bash": false,
-        "task": false,
-        "todo_write": false
+        "read": true
       },
       "permissions": {
         "skill": "allow",
