@@ -23,7 +23,6 @@ import argparse
 import sys
 from pathlib import Path
 
-# 从共享模块导入
 from _shared import (
     parse_frontmatter,
     detect_project_root,
@@ -36,6 +35,7 @@ from _shared import (
     sync_to_root_suites,
     uninstall_suite,
 )
+from errors import HermesError, ErrorCode, handle_error
 
 
 class ImportRollback:
@@ -87,21 +87,30 @@ def import_suite(suite_name: str, target_dir: Path, sync_root: bool = True) -> b
     try:
         project_root = detect_project_root()
     except FileNotFoundError as e:
-        print(f"错误: {e}", file=sys.stderr)
-        return False
+        raise HermesError(
+            code=ErrorCode.PROJECT_NOT_FOUND,
+            message="未找到 hermes-agents 项目",
+            hint="请确保在项目目录中运行此脚本",
+            details=str(e)
+        )
 
     suite_dir = project_root / 'suites' / suite_name
     agents_path = suite_dir / '.opencode' / 'agents'
 
     if not agents_path.is_dir():
-        print(f"错误: 方案 '{suite_name}' 不存在或 agent 文件夹缺失。", file=sys.stderr)
         available = list_suites(project_root)
-        print(f"可用方案: {', '.join(available)}", file=sys.stderr)
-        return False
+        raise HermesError(
+            code=ErrorCode.SUITE_NOT_FOUND,
+            message=f"方案 '{suite_name}' 不存在或 agent 文件夹缺失",
+            hint=f"可用方案: {', '.join(available)}"
+        )
 
     if not target_dir.exists():
-        print(f"错误: 目标目录 '{target_dir}' 不存在。", file=sys.stderr)
-        return False
+        raise HermesError(
+            code=ErrorCode.FILE_NOT_FOUND,
+            message=f"目标目录 '{target_dir}' 不存在",
+            hint="请检查路径是否正确，或先创建目标目录"
+        )
 
     # 读取
     print(f"读取方案 '{suite_name}' ...")
@@ -125,9 +134,13 @@ def import_suite(suite_name: str, target_dir: Path, sync_root: bool = True) -> b
         for c in copied:
             rollback.record_copy(target_dir / '.opencode' / 'agents' / c)
     except Exception as e:
-        print(f"\n错误: 复制文件失败: {e}", file=sys.stderr)
         rollback.rollback()
-        return False
+        raise HermesError(
+            code=ErrorCode.IMPORT_FAILED,
+            message="复制 Agent 文件失败",
+            hint="请检查目标目录权限",
+            details=str(e)
+        )
 
     print(f"\n已复制 {len(copied)} 个文件到 {target_dir}/.opencode/agents/:")
     for f in copied:
@@ -139,9 +152,13 @@ def import_suite(suite_name: str, target_dir: Path, sync_root: bool = True) -> b
         print(f"\n已更新 {json_path}")
         print(f"  注册 {len(registered)} 个 Agent: {', '.join(registered)}")
     except Exception as e:
-        print(f"\n错误: 更新 opencode.json 失败: {e}", file=sys.stderr)
         rollback.rollback()
-        return False
+        raise HermesError(
+            code=ErrorCode.IMPORT_FAILED,
+            message="更新 opencode.json 失败",
+            hint="请检查 JSON 文件格式是否正确",
+            details=str(e)
+        )
 
     # 同步到项目自身的 suites/ 目录
     if sync_root:
@@ -182,8 +199,12 @@ def main():
         try:
             project_root = detect_project_root()
         except FileNotFoundError as e:
-            print(f"错误: {e}", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.PROJECT_NOT_FOUND,
+                message="未找到 hermes-agents 项目",
+                hint="请确保在项目目录中运行此脚本",
+                details=str(e)
+            )
         suites = list_suites(project_root)
         print(f"可用方案 ({len(suites)}):")
         for s in suites:
@@ -195,8 +216,11 @@ def main():
     if args.uninstall:
         target_dir = Path(args.target).resolve()
         if not target_dir.exists():
-            print(f"错误: 目标目录 '{target_dir}' 不存在。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.FILE_NOT_FOUND,
+                message=f"目标目录 '{target_dir}' 不存在",
+                hint="请检查路径是否正确"
+            )
 
         deleted, json_ok = uninstall_suite(target_dir)
         print(f"卸载完成!")
@@ -216,8 +240,11 @@ def main():
         sys.exit(1)
 
     target_dir = Path(args.target).resolve()
-    success = import_suite(args.suite, target_dir, sync_root=not args.no_sync)
-    sys.exit(0 if success else 1)
+    try:
+        success = import_suite(args.suite, target_dir, sync_root=not args.no_sync)
+        sys.exit(0 if success else 1)
+    except HermesError as e:
+        handle_error(e)
 
 
 if __name__ == '__main__':

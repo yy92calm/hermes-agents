@@ -8,8 +8,14 @@ Hermes Agents — 共享工具模块
     from _shared import parse_frontmatter, REQUIRED_FIELDS, VALID_MODES
 """
 
-import re
+import json
 from pathlib import Path
+
+try:
+    import frontmatter
+    HAS_FRONTMATTER = True
+except ImportError:
+    HAS_FRONTMATTER = False
 
 
 REQUIRED_FIELDS = ['description', 'model', 'mode', 'color', 'temperature', 'max_iterations']
@@ -19,97 +25,23 @@ VALID_MODES = {'primary', 'subagent'}
 def parse_frontmatter(text: str) -> dict:
     """从 Markdown 文本中提取 YAML frontmatter。
     
-    支持:
-    - 简单键值对: key: value
-    - 嵌套字典: key:\n  subkey: value
-    - 列表: key:\n  - item1\n  - item2
+    使用 python-frontmatter 库解析，自动处理复杂 YAML 结构。
+    如果库不可用，返回空字典并打印警告。
     """
-    match = re.match(r'^---\s*\n(.*?)\n---', text, re.DOTALL)
-    if not match:
+    if not HAS_FRONTMATTER:
+        print("警告: python-frontmatter 未安装，无法解析 frontmatter", file=__import__('sys').stderr)
+        print("请运行: pip install python-frontmatter", file=__import__('sys').stderr)
         return {}
-    yaml_str = match.group(1)
-    result = {}
-    current_path = []  # 当前嵌套路径栈
-
-    def set_nested(path, key, value):
-        """在嵌套路径中设置值。"""
-        target = result
-        for p in path:
-            if p not in target or not isinstance(target[p], dict):
-                target[p] = {}
-            target = target[p]
-        target[key] = value
-
-    def get_nested(path, key):
-        """获取嵌套路径中的值。"""
-        target = result
-        for p in path:
-            if p not in target or not isinstance(target[p], dict):
-                return None
-            target = target[p]
-        return target.get(key)
-
-    def _convert(val):
-        """将字符串值转换为合适的 Python 类型。"""
-        v = val.strip().strip('"').strip("'")
-        if v.lower() == 'true':
-            return True
-        elif v.lower() == 'false':
-            return False
-        elif re.match(r'^-?\d+(\.\d+)?$', v):
-            return float(v) if '.' in v else int(v)
-        return v
-
-    lines = yaml_str.split('\n')
-    # 先扫描每行的缩进级别和类型
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        stripped = line.strip()
-        if not stripped or stripped.startswith('#'):
-            i += 1
-            continue
-
-        indent = len(line) - len(line.lstrip())
-
-        # 列表项: - item
-        if stripped.startswith('- '):
-            value = _convert(stripped[2:])
-            # 找到所属的父 key（上一行非列表行）
-            if current_path:
-                parent_key = current_path[-1]
-                parent = result
-                for p in current_path[:-1]:
-                    parent = parent.get(p, {})
-                if not isinstance(parent.get(parent_key), list):
-                    parent[parent_key] = []
-                parent[parent_key].append(value)
-            i += 1
-            continue
-
-        if ':' not in stripped:
-            i += 1
-            continue
-
-        key, _, raw_val = stripped.partition(':')
-        key = key.strip()
-        raw_val = raw_val.strip()
-        value = _convert(raw_val) if raw_val else None
-
-        # 根据缩进确定嵌套层级
-        path_level = indent // 2
-        if path_level == 0:
-            current_path = [key]
-            result[key] = value
-        else:
-            # 调整路径到对应层级：父路径为 current_path[:path_level]
-            path = current_path[:path_level]
-            set_nested(path, key, value)
-            current_path = path + [key]
-
-        i += 1
-
-    return result
+    
+    try:
+        post = frontmatter.loads(text)
+        metadata = post.metadata
+        if hasattr(metadata, 'to_dict'):
+            return metadata.to_dict()
+        return dict(metadata) if metadata else {}
+    except Exception as e:
+        print(f"警告: YAML 解析失败: {e}", file=__import__('sys').stderr)
+        return {}
 
 
 def detect_project_root() -> Path:
@@ -309,3 +241,79 @@ def sync_to_root_suites(agents: list[dict], suite_name: str, project_root: Path)
         copied.append(agent['filename'])
 
     return copied
+
+
+def get_skill_dirs(project_root: Path = None) -> list[Path]:
+    """获取技能搜索路径（项目级 + 全局级）。
+    
+    Args:
+        project_root: 项目根目录，如果为 None 则自动检测
+    
+    Returns:
+        技能目录列表，按优先级排序（项目级优先）
+    """
+    dirs = []
+    
+    if project_root is None:
+        try:
+            project_root = detect_project_root()
+        except FileNotFoundError:
+            pass
+    
+    if project_root:
+        project_skills = project_root / 'skills'
+        if project_skills.is_dir():
+            dirs.append(project_skills)
+    
+    global_skills = Path.home() / '.opencode' / 'skills'
+    if global_skills.is_dir():
+        dirs.append(global_skills)
+    
+    return dirs
+
+
+def list_available_skills(project_root: Path = None) -> dict:
+    """列出所有可用技能及其来源。
+    
+    Args:
+        project_root: 项目根目录
+    
+    Returns:
+        {skill_name: {'path': Path, 'source': 'project'|'global'}}
+    """
+    skills = {}
+    for skill_dir in get_skill_dirs(project_root):
+        for skill_path in skill_dir.iterdir():
+            if skill_path.is_dir() and (skill_path / 'SKILL.md').exists():
+                source = 'project' if 'hermes-agents' in str(skill_path) or \
+                         (project_root and str(project_root) in str(skill_path)) else 'global'
+                skills[skill_path.name] = {
+                    'path': skill_path,
+                    'source': source
+                }
+    return skills
+
+
+def get_skill_content(skill_name: str, project_root: Path = None) -> tuple[str, dict]:
+    """获取技能内容和元数据。
+    
+    Args:
+        skill_name: 技能名称
+        project_root: 项目根目录
+    
+    Returns:
+        (技能内容, frontmatter 元数据)
+    
+    Raises:
+        FileNotFoundError: 技能不存在
+    """
+    skills = list_available_skills(project_root)
+    if skill_name not in skills:
+        raise FileNotFoundError(f"技能 '{skill_name}' 不存在")
+    
+    skill_path = skills[skill_name]['path']
+    skill_file = skill_path / 'SKILL.md'
+    content = skill_file.read_text(encoding='utf-8')
+    
+    fm = parse_frontmatter(content)
+    return content, fm

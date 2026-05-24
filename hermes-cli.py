@@ -28,7 +28,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# 添加 tools 目录到路径
 sys.path.insert(0, str(Path(__file__).parent / 'tools'))
 
 from _shared import (
@@ -40,7 +39,10 @@ from _shared import (
     copy_agent_files,
     update_opencode_json,
     uninstall_suite,
+    list_available_skills,
+    get_skill_content,
 )
+from errors import HermesError, ErrorCode, handle_error, success, warning, info
 
 
 class HermesCLI:
@@ -56,9 +58,11 @@ class HermesCLI:
     
     def _require_project(self):
         if not self.project_root:
-            print("错误: 未找到 hermes-agents 项目。", file=sys.stderr)
-            print("请在 hermes-agents 项目目录或其子目录中运行此命令。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.PROJECT_NOT_FOUND,
+                message="未找到 hermes-agents 项目",
+                hint="请在项目目录或子目录中运行，或检查当前目录是否包含 suites/ 文件夹"
+            )
     
     def _get_current_agents(self) -> list[dict]:
         if not self.project_root:
@@ -154,8 +158,11 @@ class SuiteCommands:
         
         suite_dir = self.cli.project_root / 'suites' / suite_name
         if suite_dir.exists():
-            print(f"错误: 方案 '{suite_name}' 已存在。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.SUITE_EXISTS,
+                message=f"方案 '{suite_name}' 已存在",
+                hint=f"使用 'hermes suite use {suite_name}' 切换到该方案，或选择其他名称"
+            )
         
         agents_dir = suite_dir / '.opencode' / 'agents'
         agents_dir.mkdir(parents=True)
@@ -190,8 +197,11 @@ class AgentCommands:
         
         agent_file = self.cli.project_root / '.opencode' / 'agents' / f'{agent_name}.md'
         if not agent_file.exists():
-            print(f"错误: Agent '{agent_name}' 不存在。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.AGENT_NOT_FOUND,
+                message=f"Agent '{agent_name}' 不存在",
+                hint="使用 'hermes agent list' 查看所有可用 Agent"
+            )
         
         content = agent_file.read_text(encoding='utf-8')
         fm = parse_frontmatter(content)
@@ -243,8 +253,11 @@ class AgentCommands:
         
         agent_file = self.cli.project_root / '.opencode' / 'agents' / f'{agent_name}.md'
         if agent_file.exists():
-            print(f"错误: Agent '{agent_name}' 已存在。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.AGENT_EXISTS,
+                message=f"Agent '{agent_name}' 已存在",
+                hint=f"使用 'hermes agent edit {agent_name}' 编辑该 Agent，或选择其他名称"
+            )
         
         template = f'''---
 description: {agent_name} - 新建 Agent
@@ -292,16 +305,21 @@ TODO: 描述 Agent 的工作流程。
         
         agent_file = self.cli.project_root / '.opencode' / 'agents' / f'{agent_name}.md'
         if not agent_file.exists():
-            print(f"错误: Agent '{agent_name}' 不存在。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.AGENT_NOT_FOUND,
+                message=f"Agent '{agent_name}' 不存在",
+                hint="使用 'hermes agent list' 查看所有可用 Agent"
+            )
         
         editor = os.environ.get('EDITOR', 'vim')
         try:
             subprocess.run([editor, str(agent_file)])
         except FileNotFoundError:
-            print(f"错误: 找不到编辑器 '{editor}'。", file=sys.stderr)
-            print(f"请手动编辑文件: {agent_file}", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.EDITOR_NOT_FOUND,
+                message=f"找不到编辑器 '{editor}'",
+                hint=f"设置环境变量 EDITOR 或手动编辑文件: {agent_file}"
+            )
     
     def delete(self, args):
         self.cli._require_project()
@@ -342,16 +360,20 @@ TODO: 描述 Agent 的工作流程。
         
         suite_dir = self.cli.project_root / 'suites' / suite_name
         if not suite_dir.exists():
-            print(f"错误: 方案 '{suite_name}' 不存在。", file=sys.stderr)
-            print("请先创建方案:")
-            print(f"  hermes suite create {suite_name}")
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.SUITE_NOT_FOUND,
+                message=f"方案 '{suite_name}' 不存在",
+                hint=f"使用 'hermes suite create {suite_name}' 创建新方案"
+            )
         
         agents_dir = suite_dir / '.opencode' / 'agents'
         agent_file = agents_dir / f'{agent_name}.md'
         if agent_file.exists():
-            print(f"错误: Agent '{agent_name}' 已存在于方案 '{suite_name}' 中。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.AGENT_EXISTS,
+                message=f"Agent '{agent_name}' 已存在于方案 '{suite_name}' 中",
+                hint=f"使用 'hermes agent edit {agent_name}' 编辑该 Agent，或选择其他名称"
+            )
         
         print(f"在方案 '{suite_name}' 中生成 Agent: {agent_name}")
         print()
@@ -456,8 +478,11 @@ class ConfigCommands:
         
         agents = self.cli._get_current_agents()
         if not agents:
-            print("错误: 当前无 Agent 配置。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.NO_AGENTS,
+                message="当前无 Agent 配置",
+                hint="使用 'hermes suite use <方案名>' 导入方案，或 'hermes agent create <名称>' 创建新 Agent"
+            )
         
         suite_data = {
             'name': output_file.stem,
@@ -491,16 +516,22 @@ class ConfigCommands:
         input_file = Path(args.input)
         
         if not input_file.exists():
-            print(f"错误: 文件 '{input_file}' 不存在。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.FILE_NOT_FOUND,
+                message=f"文件 '{input_file}' 不存在",
+                hint="请检查文件路径是否正确"
+            )
         
         with open(input_file, 'r', encoding='utf-8') as f:
             suite_data = json.load(f)
         
         agents = suite_data.get('agents', [])
         if not agents:
-            print("错误: JSON 文件中未找到 agents。", file=sys.stderr)
-            sys.exit(1)
+            raise HermesError(
+                code=ErrorCode.INVALID_CONFIG,
+                message="JSON 文件中未找到 agents",
+                hint="请确保 JSON 文件包含 'agents' 数组字段"
+            )
         
         ensure_opencode_dirs(self.cli.project_root)
         agents_dir = self.cli.project_root / '.opencode' / 'agents'
@@ -552,11 +583,81 @@ class ConfigCommands:
         print("\n请在 OpenCode 中执行 /agents reload 使配置生效。")
 
 
+class SkillCommands:
+    def __init__(self, cli: HermesCLI):
+        self.cli = cli
+    
+    def list(self, args):
+        skills = list_available_skills(self.cli.project_root)
+        
+        if not skills:
+            print("未找到任何技能。")
+            print()
+            print("技能来源:")
+            print("  1. 项目级: <project>/skills/")
+            print("  2. 全局级: ~/.opencode/skills/")
+            return
+        
+        print(f"可用技能 ({len(skills)}):")
+        print()
+        
+        project_skills = {k: v for k, v in skills.items() if v['source'] == 'project'}
+        global_skills = {k: v for k, v in skills.items() if v['source'] == 'global'}
+        
+        if project_skills:
+            print("📦 项目级技能:")
+            for name, info in sorted(project_skills.items()):
+                try:
+                    _, fm = get_skill_content(name, self.cli.project_root)
+                    desc = fm.get('description', 'N/A')[:50]
+                except Exception:
+                    desc = 'N/A'
+                print(f"  {name:<20} {desc}")
+            print()
+        
+        if global_skills:
+            print("🌐 全局级技能:")
+            for name, info in sorted(global_skills.items()):
+                try:
+                    _, fm = get_skill_content(name, self.cli.project_root)
+                    desc = fm.get('description', 'N/A')[:50]
+                except Exception:
+                    desc = 'N/A'
+                print(f"  {name:<20} {desc}")
+            print()
+    
+    def show(self, args):
+        skill_name = args.name
+        
+        try:
+            content, fm = get_skill_content(skill_name, self.cli.project_root)
+        except FileNotFoundError:
+            raise HermesError(
+                code=ErrorCode.FILE_NOT_FOUND,
+                message=f"技能 '{skill_name}' 不存在",
+                hint="使用 'hermes skill list' 查看所有可用技能"
+            )
+        
+        source = '项目级' if list_available_skills(self.cli.project_root)[skill_name]['source'] == 'project' else '全局级'
+        
+        print(f"技能: {skill_name}")
+        print("=" * 60)
+        print()
+        print(f"来源: {source}")
+        print(f"描述: {fm.get('description', 'N/A')}")
+        print()
+        print("内容:")
+        print("-" * 60)
+        print(content)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Hermes Agents CLI — OpenCode 多 Agent 配置管理工具',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    parser.add_argument('-v', '--verbose', action='store_true',
+                       help='显示详细错误信息')
     subparsers = parser.add_subparsers(dest='command', help='命令')
     
     # Suite 命令
@@ -621,6 +722,17 @@ def main():
     config_import.add_argument('input', help='输入文件路径')
     config_import.set_defaults(func=lambda args: ConfigCommands(HermesCLI()).import_(args))
     
+    # Skill 命令
+    skill_parser = subparsers.add_parser('skill', help='技能管理')
+    skill_sub = skill_parser.add_subparsers(dest='skill_command')
+    
+    skill_list = skill_sub.add_parser('list', help='列出所有可用技能')
+    skill_list.set_defaults(func=lambda args: SkillCommands(HermesCLI()).list(args))
+    
+    skill_show = skill_sub.add_parser('show', help='显示技能详情')
+    skill_show.add_argument('name', help='技能名称')
+    skill_show.set_defaults(func=lambda args: SkillCommands(HermesCLI()).show(args))
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -628,7 +740,19 @@ def main():
         sys.exit(0)
     
     if hasattr(args, 'func'):
-        args.func(args)
+        try:
+            args.func(args)
+        except HermesError as e:
+            handle_error(e, verbose=getattr(args, 'verbose', False))
+        except KeyboardInterrupt:
+            print("\n操作已取消")
+            sys.exit(130)
+        except Exception as e:
+            print(f"\n❌ 未预期的错误: {e}", file=sys.stderr)
+            if getattr(args, 'verbose', False):
+                import traceback
+                traceback.print_exc()
+            sys.exit(1)
     else:
         parser.print_help()
 
