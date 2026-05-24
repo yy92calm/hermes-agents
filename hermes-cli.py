@@ -6,16 +6,18 @@ Hermes Agents CLI — OpenCode 多 Agent 配置管理命令行工具
     hermes suite list                    # 列出所有可用方案
     hermes suite use hermes-fullstack    # 切换到指定方案
     hermes suite uninstall              # 卸载当前方案
+    hermes suite create my-suite        # 创建新方案
     
     hermes agent list                   # 列出当前方案的 Agent
     hermes agent show coder             # 显示 Agent 详情
     hermes agent create my-agent        # 创建新 Agent
+    hermes agent generate tester --suite my-suite  # 在方案中生成新 Agent
     hermes agent edit coder             # 编辑 Agent（打开编辑器）
     hermes agent delete my-agent        # 删除 Agent
     
-    hermes validate                     # 验证配置
-    hermes export my-suite.json         # 导出为 JSON
-    hermes import my-suite.json         # 从 JSON 导入
+    hermes config validate              # 验证配置
+    hermes config export my-suite.json  # 导出为 JSON
+    hermes config import my-suite.json  # 从 JSON 导入
 """
 
 import argparse
@@ -145,6 +147,24 @@ class SuiteCommands:
             print("  已清空 opencode.json 中的 agents 配置")
         
         print("\n请在 OpenCode 中执行 /agents reload 使配置生效。")
+    
+    def create(self, args):
+        self.cli._require_project()
+        suite_name = args.name
+        
+        suite_dir = self.cli.project_root / 'suites' / suite_name
+        if suite_dir.exists():
+            print(f"错误: 方案 '{suite_name}' 已存在。", file=sys.stderr)
+            sys.exit(1)
+        
+        agents_dir = suite_dir / '.opencode' / 'agents'
+        agents_dir.mkdir(parents=True)
+        
+        print(f"已创建方案: {suite_name}")
+        print(f"目录: {suite_dir}")
+        print()
+        print("下一步:")
+        print(f"  hermes agent generate <agent-name> --suite {suite_name}")
 
 
 class AgentCommands:
@@ -314,6 +334,109 @@ TODO: 描述 Agent 的工作流程。
         
         print(f"已删除 Agent: {agent_name}")
         print("\n请在 OpenCode 中执行 /agents reload 使配置生效。")
+    
+    def generate(self, args):
+        self.cli._require_project()
+        agent_name = args.name
+        suite_name = args.suite
+        
+        suite_dir = self.cli.project_root / 'suites' / suite_name
+        if not suite_dir.exists():
+            print(f"错误: 方案 '{suite_name}' 不存在。", file=sys.stderr)
+            print("请先创建方案:")
+            print(f"  hermes suite create {suite_name}")
+            sys.exit(1)
+        
+        agents_dir = suite_dir / '.opencode' / 'agents'
+        agent_file = agents_dir / f'{agent_name}.md'
+        if agent_file.exists():
+            print(f"错误: Agent '{agent_name}' 已存在于方案 '{suite_name}' 中。", file=sys.stderr)
+            sys.exit(1)
+        
+        print(f"在方案 '{suite_name}' 中生成 Agent: {agent_name}")
+        print()
+        
+        description = input("角色定位 [默认: {agent_name} - 新建 Agent]: ").strip()
+        if not description:
+            description = f"{agent_name} - 新建 Agent"
+        
+        mode_input = input("模式 (primary/subagent) [默认: subagent]: ").strip().lower()
+        mode = mode_input if mode_input in ('primary', 'subagent') else 'subagent'
+        
+        tools_input = input("工具权限 (read,write,edit,bash,list,grep,glob,todo_write,task,web_search,web_fetch) [默认: read,list,grep,glob]: ").strip()
+        if tools_input:
+            tools = {t.strip(): True for t in tools_input.split(',')}
+        else:
+            tools = {'read': True, 'list': True, 'grep': True, 'glob': True}
+        
+        skills_input = input("技能 (逗号分隔，如 test-generator,task-planner) [默认: 无]: ").strip()
+        if skills_input:
+            skills = [s.strip() for s in skills_input.split(',')]
+        else:
+            skills = []
+        
+        perms_input = input("权限 (格式: skill=allow,edit=ask,bash=ask,webfetch=deny) [默认: skill=deny,edit=deny,bash=deny,webfetch=deny]: ").strip()
+        if perms_input:
+            permissions = {}
+            for p in perms_input.split(','):
+                if '=' in p:
+                    k, v = p.split('=')
+                    permissions[k.strip()] = v.strip()
+        else:
+            permissions = {'skill': 'deny', 'edit': 'deny', 'bash': 'deny', 'webfetch': 'deny'}
+        
+        role = input("角色描述 [可选]: ").strip()
+        workflow = input("工作流程 [可选]: ").strip()
+        
+        lines = ['---']
+        lines.append(f"description: {description}")
+        lines.append(f"model: opencode/gpt-5.1-codex")
+        lines.append(f"mode: {mode}")
+        lines.append(f"color: \"#3498DB\"")
+        lines.append(f"temperature: 0.2")
+        lines.append(f"max_iterations: 20")
+        
+        if tools:
+            lines.append('tools:')
+            for k, v in sorted(tools.items()):
+                lines.append(f"  {k}: {str(v).lower()}")
+        
+        if skills:
+            lines.append('skills:')
+            for s in skills:
+                lines.append(f"  - {s}")
+        else:
+            lines.append('skills: []')
+        
+        if permissions:
+            lines.append('permissions:')
+            for k, v in sorted(permissions.items()):
+                lines.append(f"  {k}: {v}")
+        
+        lines.append('---')
+        lines.append('')
+        lines.append(f"# {agent_name.title()}")
+        lines.append('')
+        
+        if role:
+            lines.append('## 角色定位')
+            lines.append('')
+            lines.append(role)
+            lines.append('')
+        
+        if workflow:
+            lines.append('## 工作流程')
+            lines.append('')
+            lines.append(workflow)
+            lines.append('')
+        
+        agent_file.write_text('\n'.join(lines), encoding='utf-8')
+        
+        print()
+        print(f"✓ 已创建: {agent_file}")
+        print()
+        print("下一步:")
+        print(f"  hermes suite use {suite_name}  # 导入方案到项目")
 
 
 class ConfigCommands:
@@ -450,6 +573,10 @@ def main():
     suite_uninstall = suite_sub.add_parser('uninstall', help='卸载当前方案')
     suite_uninstall.set_defaults(func=lambda args: SuiteCommands(HermesCLI()).uninstall(args))
     
+    suite_create = suite_sub.add_parser('create', help='创建新方案')
+    suite_create.add_argument('name', help='方案名称')
+    suite_create.set_defaults(func=lambda args: SuiteCommands(HermesCLI()).create(args))
+    
     # Agent 命令
     agent_parser = subparsers.add_parser('agent', help='Agent 管理')
     agent_sub = agent_parser.add_subparsers(dest='agent_command')
@@ -473,6 +600,11 @@ def main():
     agent_delete.add_argument('name', help='Agent 名称')
     agent_delete.add_argument('-f', '--force', action='store_true', help='跳过确认')
     agent_delete.set_defaults(func=lambda args: AgentCommands(HermesCLI()).delete(args))
+    
+    agent_generate = agent_sub.add_parser('generate', help='在方案中生成新 Agent')
+    agent_generate.add_argument('name', help='Agent 名称')
+    agent_generate.add_argument('--suite', required=True, help='方案名称')
+    agent_generate.set_defaults(func=lambda args: AgentCommands(HermesCLI()).generate(args))
     
     # Config 命令
     config_parser = subparsers.add_parser('config', help='配置管理')
