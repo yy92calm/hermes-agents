@@ -31,7 +31,7 @@ Hermes Agents 是一套用于维护 OpenCode 多 Agent 配置的工具集。它�
 
 打开 `config-tool.html` 进行可视化配置。
 
-### 2. 命令行工具（CLI）
+### 2. 命令行工具（CLI）— 推荐
 
 ```bash
 # 方案管理
@@ -52,7 +52,19 @@ python3 hermes-cli.py config export my-suite.json  # 导出为 JSON
 python3 hermes-cli.py config import my-suite.json  # 从 JSON 导入
 ```
 
-### 3. 传统脚本
+### 3. 底层脚本（供程序调用）
+
+`tools/` 目录中的脚本可作为 Python 库被其他程序导入：
+
+```python
+# Python 代码导入
+from tools._shared import parse_frontmatter, list_suites, uninstall_suite
+from tools.import_suite import import_suite
+```
+
+**架构关系：**
+- `hermes-cli.py` — 用户友好的统一入口，调用 tools 中的函数
+- `tools/` — 底层库，提供核心功能，可被其他程序导入
 
 ## 预设样例
 

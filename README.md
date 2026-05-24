@@ -39,7 +39,7 @@ open config-tool.html
 - 右侧勾选工具/技能 + 配置权限 + 实时 Markdown 预览
 - 智能输入防抖 — 编辑长文本时自动 200ms 防抖
 
-### 方式二：命令行工具（CLI）
+### 方式二：命令行工具（CLI）— 推荐
 
 项目提供完整的命令行工具 `hermes-cli.py`：
 
@@ -62,20 +62,19 @@ python3 hermes-cli.py config export my-suite.json  # 导出为 JSON
 python3 hermes-cli.py config import my-suite.json  # 从 JSON 导入
 ```
 
-### 方式三：传统脚本
+### 方式三：底层脚本（供程序调用）
+
+`tools/` 目录中的脚本可作为 Python 库被其他程序导入：
 
 ```bash
-# 列出所有可用方案
+# 命令行使用
 python3 tools/import_suite.py --list
-
-# 导入方案到指定项目
-python3 tools/import_suite.py hermes-fullstack --target /path/to/your-project
-
-# 检查配置一致性
-python3 tools/verify_suites.py
-
-# 自动修复问题
+python3 tools/import_suite.py hermes-fullstack --target /path/to/project
 python3 tools/verify_suites.py --fix
+
+# Python 代码导入
+from tools._shared import parse_frontmatter, list_suites, uninstall_suite
+from tools.import_suite import import_suite
 ```
 
 ## 预设样例
