@@ -18,6 +18,7 @@
 import shutil
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 # 从共享模块导入
 from _shared import (
@@ -244,8 +245,16 @@ def main():
     # 检查 root agents 引用的技能是否存在
     print()
     print('=== 技能引用检查 ===')
-    skill_dir = project_root / 'skills'
-    existing_skills = {d.name for d in skill_dir.iterdir() if d.is_dir()} if skill_dir.is_dir() else set()
+    
+    # 项目级技能
+    project_skill_dir = project_root / 'skills'
+    project_skills = {d.name for d in project_skill_dir.iterdir() if d.is_dir()} if project_skill_dir.is_dir() else set()
+    
+    # 全局级技能
+    global_skill_dir = Path.home() / '.claude' / 'skills'
+    global_skills = {d.name for d in global_skill_dir.iterdir() if d.is_dir()} if global_skill_dir.is_dir() else set()
+    
+    all_skills = project_skills | global_skills
 
     all_agent_files = list((project_root / '.opencode' / 'agents').glob('*.md'))
     for suite_name, agents in suites_data.items():
@@ -257,14 +266,14 @@ def main():
         skills = fm.get('skills')
         if isinstance(skills, list):
             for skill_name in skills:
-                if isinstance(skill_name, str) and skill_name not in existing_skills:
+                if isinstance(skill_name, str) and skill_name not in all_skills:
                     all_ok = False
                     total_issues += 1
-                    print(f'  ⚠️ {md_file.name} 引用了技能 \'{skill_name}\'，但 skills/{skill_name}/ 目录不存在')
+                    print(f'  ⚠️ {md_file.name} 引用了技能 \'{skill_name}\'，但未在项目 skills/ 或全局 ~/.claude/skills/ 中找到')
                     skill_refs_found = True
 
     if not skill_refs_found:
-        print('  所有技能引用均有效')
+        print(f'  所有技能引用均有效（项目级: {len(project_skills)}，全局级: {len(global_skills)}）')
 
     print()
     if all_ok:

@@ -103,6 +103,22 @@ permissions:
 | `security-checklist` | `skills/security-checklist/SKILL.md` | 安全审查清单，按 OWASP 检查漏洞 |
 | `tech-comparison` | `skills/tech-comparison/SKILL.md` | 结构化技术对比，多维度分析 |
 
+### 技能来源
+
+OpenCode 支持两种技能来源：
+
+1. **项目级技能** — `skills/` 目录
+   - 仅对当前项目生效
+   - 随项目代码一起管理
+   - 适合项目特定的技能
+
+2. **全局级技能** — `~/.claude/skills/` 目录
+   - 对所有项目生效
+   - 用户自行安装和管理
+   - 适合通用技能（如 pdf、xlsx 等）
+
+Agent 配置中的 `skills` 字段可以引用两种来源的技能。
+
 ### 创建新技能
 
 1. 在 `skills/` 下创建目录，如 `my-skill/`
@@ -189,4 +205,4 @@ hermes-agents/
 
 ## 版本
 
-v1.4.0 — 2026-05-24 重构技能目录：技能移至 skills/ 目录，明确为配置工具专用功能
+v1.5.0 — 2026-05-24 支持全局技能目录：验证脚本检查 ~/.claude/skills/，文档说明技能来源

@@ -190,7 +190,11 @@ python3 tools/import_suite.py hermes-fullstack --target /path/to/your-project
 
 ## 技能扩展
 
-项目内置 6 个技能，位于 `skills/` 目录（配置工具专用，不随方案导入）：
+OpenCode 支持两种技能来源：
+
+### 项目级技能
+
+位于 `skills/` 目录（配置工具专用，不随方案导入）：
 
 | 技能 | 用途 |
 |------|------|
@@ -202,6 +206,19 @@ python3 tools/import_suite.py hermes-fullstack --target /path/to/your-project
 | `tech-comparison` | 结构化技术对比 |
 
 创建新技能：在 `skills/` 下创建目录和 `SKILL.md` 文件。
+
+### 全局级技能
+
+位于 `~/.claude/skills/` 目录，对所有项目生效：
+
+- 用户自行安装和管理
+- 适合通用技能（如 pdf、xlsx、frontend-design 等）
+- 可在任意项目的 Agent 配置中引用
+
+查看已安装的全局技能：
+```bash
+ls ~/.claude/skills/
+```
 
 ## 许可证
 
