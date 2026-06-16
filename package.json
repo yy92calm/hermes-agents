@@ -1,0 +1,27 @@
+{
+  "name": "agent-team",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentTeam - Expert Team scaffolding framework for OpenCode",
+  "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/cli"
+  ],
+  "bin": {
+    "agent-team": "packages/cli/bin/agent-team.ts"
+  },
+  "scripts": {
+    "build": "bun run build:core && bun run build:cli",
+    "build:core": "bun build packages/core/src/index.ts --outdir packages/core/dist --target bun --format esm",
+    "build:cli": "bun build packages/cli/src/index.ts --outdir packages/cli/dist --target bun --format esm",
+    "watch": "bun run packages/cli/bin/agent-team.ts watch",
+    "clean": "rm -rf packages/*/dist teams .opencode/plugins/team-*.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["opencode", "plugin", "expert-team", "agent", "scaffold"],
+  "license": "MIT",
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.17.7"
+  }
+}

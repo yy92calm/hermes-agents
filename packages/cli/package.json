@@ -1,0 +1,12 @@
+{
+  "name": "@agent-team/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agent-team": "./bin/agent-team.ts"
+  },
+  "dependencies": {
+    "@agent-team/core": "workspace:*"
+  }
+}

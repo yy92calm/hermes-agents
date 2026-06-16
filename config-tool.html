@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentTeam 配置工具</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#222533;--border:#2a2e3d;
+  --text:#e1e4ed;--text2:#8b8fa5;--text3:#585c6e;
+  --accent:#6c7bff;--green:#3fb950;--yellow:#d4a017;--red:#e74c3c;--blue:#2e86c1;--purple:#8e44ad;--teal:#17a589;
+  --radius:6px;--font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font:var(--font);overflow:hidden}
+input,select,textarea,button{font:inherit;color:var(--text);border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=color]{padding:2px;height:30px;cursor:pointer}
+button{cursor:pointer;padding:4px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface2);color:var(--text);transition:all .15s;white-space:nowrap}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.primary:hover{opacity:.85}
+button.danger{color:var(--red);border-color:var(--red)}
+button.danger:hover{background:var(--red);color:#fff}
+button.sm{padding:2px 8px;font-size:12px}
+select{padding:4px 8px;appearance:auto}
+input[type=text],input[type=number],textarea{padding:4px 8px;width:100%}
+input[type=number]{width:80px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* Layout */
+.app{display:flex;flex-direction:column;height:100vh}
+.team-bar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.team-bar select{min-width:140px}
+.team-bar .sep{width:1px;height:20px;background:var(--border);margin:0 4px;flex-shrink:0}
+.main{display:flex;flex:1;overflow:hidden}
+.left-panel{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.center-panel{flex:1;overflow-y:auto;padding:16px 20px;min-width:0}
+.right-panel{width:380px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+
+/* Left panel - agent list */
+.agent-list-header{padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.agent-list{flex:1;overflow-y:auto}
+.agent-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border)}
+.agent-item:hover{background:var(--surface2)}
+.agent-item.active{background:var(--surface2);border-left:3px solid var(--accent)}
+.agent-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.agent-info{flex:1;min-width:0}
+.agent-info .name{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-info .role{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-mode{font-size:10px;padding:1px 6px;border-radius:3px;background:var(--accent);color:#fff;flex-shrink:0}
+.agent-mode.primary{background:var(--green)}
+
+/* Center panel - form */
+.section-title{font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text2);letter-spacing:.5px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.section-title:first-child{margin-top:0}
+.form-grid{display:grid;grid-template-columns:100px 1fr;gap:6px 10px;align-items:center}
+.form-grid label{font-size:12px;color:var(--text2);text-align:right;white-space:nowrap}
+.form-grid .full{grid-column:1/-1}
+.form-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.form-row label{font-size:12px;color:var(--text2);min-width:80px}
+.form-row .flex-1{flex:1}
+.instruction-row{display:flex;gap:4px;align-items:center;margin-bottom:4px}
+.instruction-row input{flex:1}
+
+/* Nested sections */
+.skill-card,.rule-card,.mcp-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:8px}
+.skill-card .card-header,.rule-card .card-header,.mcp-card .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.skill-card .card-title,.rule-card .card-title,.mcp-card .card-title{font-size:12px;font-weight:600;color:var(--accent)}
+.nested-instructions{margin-top:4px}
+.nested-instructions .instruction-row{margin-bottom:3px}
+
+/* Right panel */
+.right-section{padding:12px;border-bottom:1px solid var(--border)}
+.right-section .section-label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2);letter-spacing:.5px;margin-bottom:8px}
+.tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.tools-grid label{display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:2px 0}
+.tools-grid input[type=checkbox]{accent-color:var(--accent)}
+.perm-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.perm-row .perm-name{font-size:12px;color:var(--text)}
+.perm-row select{width:80px;padding:2px 4px;font-size:12px}
+.preview-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:11px;line-height:1.4;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto;color:var(--text2)}
+
+/* Toast */
+.toast-container{position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:8px 16px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:12px;animation:toastIn .2s;box-shadow:0 4px 12px rgba(0,0,0,.4)}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.info{border-color:var(--accent);color:var(--accent)}
+.toast.error{border-color:var(--red);color:var(--red)}
+@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Empty state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);gap:8px}
+.empty-state .icon{font-size:32px}
+.empty-state .hint{font-size:13px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;min-width:320px;max-width:480px}
+.modal h3{margin-bottom:12px;font-size:15px}
+.modal .form-grid{margin-bottom:16px}
+.modal .modal-actions{display:flex;justify-content:flex-end;gap:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Team Bar -->
+  <div class="team-bar">
+    <select id="teamSelect" title="选择团队"></select>
+    <button onclick="createTeam()" title="新建团队">+ 新建</button>
+    <button onclick="renameTeam()" title="重命名团队">重命名</button>
+    <button onclick="deleteTeam()" class="danger" title="删除团队">删除</button>
+    <div class="sep"></div>
+    <button onclick="loadPreset()" title="加载预设团队">预设团队</button>
+    <button onclick="importFile()" title="导入 team.json">导入</button>
+    <button onclick="exportFile()" title="导出 team.json">导出</button>
+    <div class="sep"></div>
+    <button onclick="buildPlugin()" class="primary" title="生成插件命令">构建插件</button>
+    <button onclick="activateTeam()" title="激活团队命令">激活团队</button>
+    <div class="sep"></div>
+    <span style="font-size:11px;color:var(--text3)" id="teamVersion"></span>
+  </div>
+  <input type="file" id="fileInput" accept=".json" style="display:none">
+
+  <div class="main">
+    <!-- Left Panel -->
+    <div class="left-panel">
+      <div class="agent-list-header">
+        <span style="font-size:12px;font-weight:600">专家列表</span>
+        <button class="sm" onclick="addAgent()">+ 添加</button>
+      </div>
+      <div class="agent-list" id="agentList"></div>
+    </div>
+
+    <!-- Center Panel -->
+    <div class="center-panel" id="centerPanel">
+      <div class="empty-state" id="emptyState">
+        <div class="icon">🤖</div>
+        <div class="hint">选择或创建一个专家开始编辑</div>
+      </div>
+      <div id="agentForm" style="display:none">
+        <!-- Basic Info -->
+        <div class="section-title">基本信息</div>
+        <div class="form-grid">
+          <label>名称</label><input type="text" id="f_name" oninput="onFieldChange('name',this.value)">
+          <label>角色</label><input type="text" id="f_role" oninput="onFieldChange('role',this.value)">
+          <label>模式</label><select id="f_mode" onchange="onFieldChange('mode',this.value)"><option value="subagent">subagent</option><option value="primary">primary</option></select>
+          <label>颜色</label><div class="form-row"><input type="color" id="f_color" oninput="onColorChange(this.value)" style="width:40px"><span id="f_colorHex" style="font-size:12px;color:var(--text2)"></span></div>
+          <label>描述</label><input type="text" id="f_description" oninput="onFieldChange('description',this.value)">
+        </div>
+
+        <!-- Config -->
+        <div class="section-title">模型配置</div>
+        <div class="form-grid">
+          <label>模型</label><select id="f_model" onchange="onConfigChange('model',this.value)">
+            <option value="claude-sonnet-4">claude-sonnet-4</option>
+            <option value="claude-opus-4">claude-opus-4</option>
+            <option value="claude-haiku-4">claude-haiku-4</option>
+            <option value="gpt-4o">gpt-4o</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="deepseek-v3">deepseek-v3</option>
+            <option value="deepseek-r1">deepseek-r1</option>
+          </select>
+          <label>温度</label><input type="number" id="f_temperature" min="0" max="1" step="0.05" oninput="onConfigChange('temperature',parseFloat(this.value))">
+          <label>最大步数</label><input type="number" id="f_maxSteps" min="1" max="100" step="1" oninput="onConfigChange('maxSteps',parseInt(this.value))">
+        </div>
+
+        <!-- Instructions -->
+        <div class="section-title">指令</div>
+        <div id="instructionsList"></div>
+        <button class="sm" onclick="addInstruction()" style="margin-top:4px">+ 添加指令</button>
+
+        <!-- Skills -->
+        <div class="section-title">技能</div>
+        <div id="skillsList"></div>
+        <button class="sm" onclick="addSkill()" style="margin-top:4px">+ 添加技能</button>
+
+        <!-- Rules -->
+        <div class="section-title">规则</div>
+        <div id="rulesList"></div>
+        <button class="sm" onclick="addRule()" style="margin-top:4px">+ 添加规则</button>
+
+        <!-- MCP Servers -->
+        <div class="section-title">MCP 服务器</div>
+        <div id="mcpList"></div>
+        <button class="sm" onclick="addMcp()" style="margin-top:4px">+ 添加 MCP</button>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <div class="right-section">
+        <div class="section-label">工具</div>
+        <div class="tools-grid" id="toolsGrid"></div>
+      </div>
+      <div class="right-section">
+        <div class="section-label">权限</div>
+        <div id="permissionsPanel"></div>
+      </div>
+      <div class="right-section" style="flex:1;display:flex;flex-direction:column">
+        <div class="section-label">JSON 预览</div>
+        <div class="preview-box" id="previewBox">选择专家查看预览</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ============ Constants ============
+const STORAGE_KEY = 'agentteam-config-v1';
+const TOOL_OPTIONS = ['read','write','edit','bash','list','grep','glob','todo_write','task','web_search','web_fetch'];
+const PERM_OPTIONS = ['skill','edit','bash','webfetch'];
+const PERM_VALUES = ['allow','ask','deny'];
+const AGENT_COLORS = ['#D4A017','#3fb950','#6c7bff','#e74c3c','#2e86c1','#8e44ad','#17a589','#e67e22'];
+
+// ============ State ============
+let state = { teams: {}, activeTeam: null, activeAgentIndex: -1 };
+let saveTimer = null;
+
+// ============ Presets ============
+const PRESETS = {
+  research: {
+    team: {
+      name:'research', description:'研究分析团队', version:'0.1.0',
+      agents:[
+        { name:'researcher', role:'高级研究员', description:'负责信息检索和资料收集', mode:'subagent',
+          instructions:['搜索和收集与任务相关的信息','从多个来源交叉验证准确性','整理信息并标注来源'],
+          tools:{read:true,web_search:true},
+          agentConfig:{model:'claude-sonnet-4',temperature:0.3,permissions:{web_search:'allow',read:'allow'},color:'#D4A017',maxSteps:20},
+          skills:[{name:'information-retrieval',description:'系统化信息收集',instructions:['从广到窄逐步聚焦','交叉验证信息来源']}],
+          rules:[{title:'来源引用',content:['每个结论必须标注来源','使用完整URL']}],
+          mcpServers:[{name:'web-search',command:['npx','-y','@anthropic/search'],description:'网页搜索'}]
+        },
+        { name:'analyst', role:'数据分析师', description:'负责数据分析和可视化', mode:'subagent',
+          instructions:['对收集的数据进行统计分析','生成数据可视化图表','识别数据中的关键趋势和模式'],
+          tools:{read:true,write:true,bash:true},
+          agentConfig:{model:'claude-sonnet-4',temperature:0.2,permissions:{bash:'allow',write:'allow'},color:'#2e86c1',maxSteps:25},
+          skills:[{name:'data-analysis',description:'数据分析与可视化',instructions:['优先使用pandas进行数据处理','图表需标注数据来源']}],
+          rules:[{title:'数据准确性',content:['所有计算结果需二次验证','标注置信区间']}],
+          mcpServers:[]
+        },
+        { name:'writer', role:'报告撰写师', description:'负责撰写研究报告', mode:'subagent',
+          instructions:['整合研究和分析结果','撰写结构清晰的报告','确保语言专业且易懂'],
+          tools:{read:true,write:true,edit:true},
+          agentConfig:{model:'claude-sonnet-4',temperature:0.5,permissions:{write:'allow',edit:'allow'},color:'#3fb950',maxSteps:15},
+          skills:[{name:'report-writing',description:'结构化报告撰写',instructions:['使用标题层级组织内容','每个章节有明确结论']}],
+          rules:[{title:'写作规范',content:['避免口语化表达','数据和结论分开陈述']}],
+          mcpServers:[]
+        }
+      ],
+      orchestration:{strategy:'parallel',maxConcurrency:3}
+    },
+    updatedAt: new Date().toISOString()
+  },
+  devops: {
+    team: {
+      name:'devops', description:'开发运维团队', version:'0.1.0',
+      agents:[
+        { name:'architect', role:'架构师', description:'负责系统架构设计和方案评审', mode:'primary',
+          instructions:['评估系统架构的合理性','提出优化方案和改进建议','确保方案满足非功能性需求'],
+          tools:{read:true,grep:true,glob:true},
+          agentConfig:{model:'claude-opus-4',temperature:0.2,permissions:{read:'allow'},color:'#8e44ad',maxSteps:30},
+          skills:[{name:'architecture-review',description:'架构评审与设计',instructions:['检查模块间耦合度','评估扩展性和可维护性']}],
+          rules:[{title:'架构原则',content:['遵循单一职责原则','组件间松耦合']}],
+          mcpServers:[]
+        },
+        { name:'coder', role:'编码工程师', description:'负责代码实现和功能开发', mode:'subagent',
+          instructions:['按照设计方案编写代码','编写单元测试','遵循项目编码规范'],
+          tools:{read:true,write:true,edit:true,bash:true},
+          agentConfig:{model:'claude-sonnet-4',temperature:0.1,permissions:{write:'allow',edit:'allow',bash:'allow'},color:'#3fb950',maxSteps:40},
+          skills:[{name:'coding',description:'代码实现',instructions:['先写测试再写实现','保持函数短小']}],
+          rules:[{title:'编码规范',content:['变量命名语义化','函数不超过50行']}],
+          mcpServers:[]
+        },
+        { name:'reviewer', role:'代码审查员', description:'负责代码审查和质量把控', mode:'subagent',
+          instructions:['审查代码逻辑和边界条件','检查安全漏洞和性能问题','提供改进建议'],
+          tools:{read:true,grep:true,glob:true},
+          agentConfig:{model:'claude-sonnet-4',temperature:0.15,permissions:{read:'allow'},color:'#e74c3c',maxSteps:25},
+          skills:[{name:'code-review',description:'代码审查',instructions:['关注逻辑正确性','检查错误处理']}],
+          rules:[{title:'审查标准',content:['每个PR至少审查关键路径','标记潜在安全风险']}],
+          mcpServers:[]
+        }
+      ],
+      orchestration:{strategy:'sequential',maxConcurrency:1}
+    },
+    updatedAt: new Date().toISOString()
+  },
+  lite: {
+    team: {
+      name:'lite', description:'轻量级团队', version:'0.1.0',
+      agents:[
+        { name:'scout', role:'代码探索', description:'快速浏览和理解代码库', mode:'subagent',
+          instructions:['快速定位相关代码文件','理解代码结构和依赖关系','总结关键发现'],
+          tools:{read:true,grep:true,glob:true,list:true},
+          agentConfig:{model:'claude-haiku-4',temperature:0.1,permissions:{read:'allow'},color:'#17a589',maxSteps:15},
+          skills:[],rules:[],mcpServers:[]
+        },
+        { name:'runner', role:'执行器', description:'执行具体任务和操作', mode:'subagent',
+          instructions:['按指令执行操作','报告执行结果','遇到错误及时反馈'],
+          tools:{read:true,write:true,edit:true,bash:true},
+          agentConfig:{model:'claude-sonnet-4',temperature:0.1,permissions:{write:'allow',edit:'allow',bash:'allow'},color:'#e67e22',maxSteps:30},
+          skills:[],rules:[],mcpServers:[]
+        }
+      ],
+      orchestration:{strategy:'sequential',maxConcurrency:1}
+    },
+    updatedAt: new Date().toISOString()
+  }
+};
+
+// ============ Persistence ============
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { state = JSON.parse(raw); return; }
+  } catch(e) {}
+  // Default: load research preset
+  state = { teams: { research: JSON.parse(JSON.stringify(PRESETS.research)) }, activeTeam: 'research', activeAgentIndex: 0 };
+  saveState();
+}
+
+function saveState() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, 50);
+}
+
+// ============ Helpers ============
+function currentTeamFile() { return state.teams[state.activeTeam]; }
+function currentTeam() { const f = currentTeamFile(); return f ? f.team : null; }
+function currentAgent() { const t = currentTeam(); return t ? (t.agents[state.activeAgentIndex] || null) : null; }
+
+function toast(msg, type='info') {
+  const c = document.getElementById('toastContainer');
+  const d = document.createElement('div');
+  d.className = 'toast ' + type;
+  d.textContent = msg;
+  c.appendChild(d);
+  setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .3s'; setTimeout(() => d.remove(), 300); }, 3000);
+}
+
+function newTeamFile(name, description) {
+  return { team: { name, description, version: '0.1.0', agents: [], orchestration: { strategy: 'parallel', maxConcurrency: 3 } }, updatedAt: new Date().toISOString() };
+}
+
+function newAgent(name, role) {
+  return {
+    name: name || 'new-agent', role: role || '新专家', description: '', mode: 'subagent',
+    instructions: [], tools: {}, agentConfig: { model: 'claude-sonnet-4', temperature: 0.3, permissions: {}, color: AGENT_COLORS[Math.floor(Math.random()*AGENT_COLORS.length)], maxSteps: 20 },
+    skills: [], rules: [], mcpServers: []
+  };
+}
+
+// ============ Rendering ============
+function renderAll() {
+  renderTeamBar();
+  renderAgentList();
+  renderCenterPanel();
+  renderRightPanel();
+}
+
+function renderTeamBar() {
+  const sel = document.getElementById('teamSelect');
+  const teams = Object.keys(state.teams);
+  sel.innerHTML = teams.map(t => `<option value="${t}" ${t===state.activeTeam?'selected':''}>${t}</option>`).join('');
+  const ver = document.getElementById('teamVersion');
+  const tf = currentTeamFile();
+  ver.textContent = tf ? `v${tf.team.version} · ${tf.team.agents.length} 专家` : '';
+}
+
+function renderAgentList() {
+  const list = document.getElementById('agentList');
+  const team = currentTeam();
+  if (!team) { list.innerHTML = ''; return; }
+  if (team.agents.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px"><div class="hint">暂无专家</div></div>';
+    return;
+  }
+  list.innerHTML = team.agents.map((a, i) => {
+    const c = (a.agentConfig && a.agentConfig.color) || '#888';
+    const modeCls = a.mode === 'primary' ? 'agent-mode primary' : 'agent-mode';
+    return `<div class="agent-item ${i===state.activeAgentIndex?'active':''}" onclick="selectAgent(${i})">
+      <div class="agent-dot" style="background:${c}"></div>
+      <div class="agent-info"><div class="name">${esc(a.name)}</div><div class="role">${esc(a.role)}</div></div>
+      <span class="${modeCls}">${a.mode||'subagent'}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderCenterPanel() {
+  const agent = currentAgent();
+  const form = document.getElementById('agentForm');
+  const empty = document.getElementById('emptyState');
+  if (!agent) { form.style.display = 'none'; empty.style.display = 'flex'; return; }
+  form.style.display = 'block'; empty.style.display = 'none';
+
+  // Basic fields
+  document.getElementById('f_name').value = agent.name || '';
+  document.getElementById('f_role').value = agent.role || '';
+  document.getElementById('f_mode').value = agent.mode || 'subagent';
+  const color = (agent.agentConfig && agent.agentConfig.color) || '#888';
+  document.getElementById('f_color').value = color;
+  document.getElementById('f_colorHex').textContent = color;
+  document.getElementById('f_description').value = agent.description || '';
+
+  // Config
+  const cfg = agent.agentConfig || {};
+  document.getElementById('f_model').value = cfg.model || 'claude-sonnet-4';
+  document.getElementById('f_temperature').value = cfg.temperature != null ? cfg.temperature : 0.3;
+  document.getElementById('f_maxSteps').value = cfg.maxSteps || 20;
+
+  // Instructions
+  renderInstructions(agent);
+  // Skills
+  renderSkills(agent);
+  // Rules
+  renderRules(agent);
+  // MCP
+  renderMcp(agent);
+}
+
+function renderInstructions(agent) {
+  const el = document.getElementById('instructionsList');
+  const list = agent.instructions || [];
+  el.innerHTML = list.map((inst, i) =>
+    `<div class="instruction-row"><input type="text" value="${esc(inst)}" oninput="onInstructionChange(${i},this.value)"><button class="sm danger" onclick="removeInstruction(${i})">✕</button></div>`
+  ).join('');
+}
+
+function renderSkills(agent) {
+  const el = document.getElementById('skillsList');
+  const skills = agent.skills || [];
+  el.innerHTML = skills.map((sk, si) => {
+    const insts = (sk.instructions || []).map((inst, ii) =>
+      `<div class="instruction-row"><input type="text" value="${esc(inst)}" oninput="onSkillInstructionChange(${si},${ii},this.value)"><button class="sm danger" onclick="removeSkillInstruction(${si},${ii})">✕</button></div>`
+    ).join('');
+    return `<div class="skill-card">
+      <div class="card-header"><span class="card-title">技能 ${si+1}</span><button class="sm danger" onclick="removeSkill(${si})">删除</button></div>
+      <div class="form-grid">
+        <label>名称</label><input type="text" value="${esc(sk.name)}" oninput="onSkillFieldChange(${si},'name',this.value)">
+        <label>描述</label><input type="text" value="${esc(sk.description)}" oninput="onSkillFieldChange(${si},'description',this.value)">
+      </div>
+      <div class="nested-instructions"><div style="font-size:11px;color:var(--text3);margin-bottom:2px">指令</div>${insts}<button class="sm" onclick="addSkillInstruction(${si})">+ 指令</button></div>
+    </div>`;
+  }).join('');
+}
+
+function renderRules(agent) {
+  const el = document.getElementById('rulesList');
+  const rules = agent.rules || [];
+  el.innerHTML = rules.map((r, ri) => {
+    const contents = (r.content || []).map((c, ci) =>
+      `<div class="instruction-row"><input type="text" value="${esc(c)}" oninput="onRuleContentChange(${ri},${ci},this.value)"><button class="sm danger" onclick="removeRuleContent(${ri},${ci})">✕</button></div>`
+    ).join('');
+    return `<div class="rule-card">
+      <div class="card-header"><span class="card-title">规则 ${ri+1}</span><button class="sm danger" onclick="removeRule(${ri})">删除</button></div>
+      <div class="form-grid">
+        <label>标题</label><input type="text" value="${esc(r.title)}" oninput="onRuleFieldChange(${ri},'title',this.value)">
+      </div>
+      <div class="nested-instructions"><div style="font-size:11px;color:var(--text3);margin-bottom:2px">内容</div>${contents}<button class="sm" onclick="addRuleContent(${ri})">+ 内容</button></div>
+    </div>`;
+  }).join('');
+}
+
+function renderMcp(agent) {
+  const el = document.getElementById('mcpList');
+  const mcps = agent.mcpServers || [];
+  el.innerHTML = mcps.map((m, mi) =>
+    `<div class="mcp-card">
+      <div class="card-header"><span class="card-title">MCP ${mi+1}</span><button class="sm danger" onclick="removeMcp(${mi})">删除</button></div>
+      <div class="form-grid">
+        <label>名称</label><input type="text" value="${esc(m.name)}" oninput="onMcpFieldChange(${mi},'name',this.value)">
+        <label>命令</label><input type="text" value="${esc((m.command||[]).join(', '))}" oninput="onMcpCommandChange(${mi},this.value)">
+        <label>描述</label><input type="text" value="${esc(m.description||'')}" oninput="onMcpFieldChange(${mi},'description',this.value)">
+        <label>环境变量</label><input type="text" value="${esc(m.env?Object.entries(m.env).map(([k,v])=>k+'='+v).join(', '):'')}" oninput="onMcpEnvChange(${mi},this.value)" placeholder="KEY=VAL, KEY2=VAL2">
+      </div>
+    </div>`
+  ).join('');
+}
+
+function renderRightPanel() {
+  renderTools();
+  renderPermissions();
+  renderPreview();
+}
+
+function renderTools() {
+  const agent = currentAgent();
+  const grid = document.getElementById('toolsGrid');
+  const tools = (agent && agent.tools) || {};
+  grid.innerHTML = TOOL_OPTIONS.map(t =>
+    `<label><input type="checkbox" ${tools[t]?'checked':''} onchange="onToolToggle('${t}',this.checked)">${t}</label>`
+  ).join('');
+}
+
+function renderPermissions() {
+  const agent = currentAgent();
+  const panel = document.getElementById('permissionsPanel');
+  const perms = (agent && agent.agentConfig && agent.agentConfig.permissions) || {};
+  panel.innerHTML = PERM_OPTIONS.map(p => {
+    const val = perms[p] || 'ask';
+    return `<div class="perm-row"><span class="perm-name">${p}</span><select onchange="onPermChange('${p}',this.value)">${PERM_VALUES.map(v=>`<option value="${v}" ${v===val?'selected':''}>${v}</option>`).join('')}</select></div>`;
+  }).join('');
+}
+
+function renderPreview() {
+  const agent = currentAgent();
+  const box = document.getElementById('previewBox');
+  if (!agent) { box.textContent = '选择专家查看预览'; return; }
+  box.textContent = JSON.stringify(agent, null, 2);
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ============ Team Actions ============
+document.getElementById('teamSelect').addEventListener('change', function() {
+  state.activeTeam = this.value;
+  state.activeAgentIndex = 0;
+  saveState();
+  renderAll();
+});
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.team && data.team.name) {
+        state.teams[data.team.name] = data;
+        state.activeTeam = data.team.name;
+        state.activeAgentIndex = 0;
+        saveState();
+        renderAll();
+        toast('已导入团队: ' + data.team.name, 'success');
+      } else {
+        toast('无效的 team.json 格式', 'error');
+      }
+    } catch(err) { toast('解析 JSON 失败: ' + err.message, 'error'); }
+  };
+  reader.readAsText(file);
+  this.value = '';
+});
+
+function createTeam() {
+  showModal('新建团队', [
+    { key:'name', label:'团队名称', value:'' },
+    { key:'description', label:'描述', value:'' }
+  ], (vals) => {
+    if (!vals.name.trim()) { toast('名称不能为空', 'error'); return; }
+    if (state.teams[vals.name]) { toast('团队已存在', 'error'); return; }
+    state.teams[vals.name] = newTeamFile(vals.name, vals.description);
+    state.activeTeam = vals.name;
+    state.activeAgentIndex = -1;
+    saveState();
+    renderAll();
+    toast('已创建团队: ' + vals.name, 'success');
+  });
+}
+
+function renameTeam() {
+  const old = state.activeTeam;
+  if (!old) return;
+  showModal('重命名团队', [
+    { key:'name', label:'新名称', value:old }
+  ], (vals) => {
+    if (!vals.name.trim() || vals.name === old) return;
+    if (state.teams[vals.name]) { toast('名称已存在', 'error'); return; }
+    const tf = state.teams[old];
+    tf.team.name = vals.name;
+    state.teams[vals.name] = tf;
+    delete state.teams[old];
+    state.activeTeam = vals.name;
+    saveState();
+    renderAll();
+    toast('已重命名为: ' + vals.name, 'success');
+  });
+}
+
+function deleteTeam() {
+  if (!state.activeTeam) return;
+  if (!confirm('确定删除团队 "' + state.activeTeam + '"？')) return;
+  delete state.teams[state.activeTeam];
+  const keys = Object.keys(state.teams);
+  state.activeTeam = keys[0] || null;
+  state.activeAgentIndex = -1;
+  saveState();
+  renderAll();
+  toast('已删除团队', 'success');
+}
+
+function loadPreset() {
+  showModal('加载预设团队', [
+    { key:'preset', label:'预设', type:'select', options:Object.keys(PRESETS).map(k=>({value:k,label:k+(PRESETS[k].team.description?' - '+PRESETS[k].team.description:'')})), value:'research' }
+  ], (vals) => {
+    const p = PRESETS[vals.preset];
+    if (!p) return;
+    state.teams[vals.preset] = JSON.parse(JSON.stringify(p));
+    state.activeTeam = vals.preset;
+    state.activeAgentIndex = 0;
+    saveState();
+    renderAll();
+    toast('已加载预设: ' + vals.preset, 'success');
+  });
+}
+
+function importFile() { document.getElementById('fileInput').click(); }
+
+function exportFile() {
+  const tf = currentTeamFile();
+  if (!tf) { toast('没有可导出的团队', 'error'); return; }
+  const blob = new Blob([JSON.stringify(tf, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = (tf.team.name || 'team') + '.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('已导出 team.json', 'success');
+}
+
+function buildPlugin() {
+  const t = currentTeam();
+  if (!t) { toast('请先选择团队', 'error'); return; }
+  toast('bun agent-team build-plugin ' + t.name, 'info');
+}
+
+function activateTeam() {
+  const t = currentTeam();
+  if (!t) { toast('请先选择团队', 'error'); return; }
+  toast('bun agent-team activate-team ' + t.name, 'info');
+}
+
+// ============ Agent Actions ============
+function selectAgent(i) {
+  state.activeAgentIndex = i;
+  renderAll();
+}
+
+function addAgent() {
+  const team = currentTeam();
+  if (!team) { toast('请先选择团队', 'error'); return; }
+  showModal('添加专家', [
+    { key:'name', label:'名称', value:'' },
+    { key:'role', label:'角色', value:'' }
+  ], (vals) => {
+    if (!vals.name.trim()) { toast('名称不能为空', 'error'); return; }
+    const a = newAgent(vals.name, vals.role);
+    team.agents.push(a);
+    state.activeAgentIndex = team.agents.length - 1;
+    saveState();
+    renderAll();
+    toast('已添加专家: ' + vals.name, 'success');
+  });
+}
+
+// ============ Field Handlers ============
+function onFieldChange(field, value) {
+  const agent = currentAgent();
+  if (!agent) return;
+  agent[field] = value;
+  if (field === 'name') renderAgentList();
+  saveState();
+  renderPreview();
+}
+
+function onColorChange(value) {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.agentConfig) agent.agentConfig = {};
+  agent.agentConfig.color = value;
+  document.getElementById('f_colorHex').textContent = value;
+  renderAgentList();
+  saveState();
+  renderPreview();
+}
+
+function onConfigChange(field, value) {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.agentConfig) agent.agentConfig = {};
+  agent.agentConfig[field] = value;
+  saveState();
+  renderPreview();
+}
+
+function onToolToggle(tool, checked) {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.tools) agent.tools = {};
+  agent.tools[tool] = checked;
+  saveState();
+  renderPreview();
+}
+
+function onPermChange(perm, value) {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.agentConfig) agent.agentConfig = {};
+  if (!agent.agentConfig.permissions) agent.agentConfig.permissions = {};
+  agent.agentConfig.permissions[perm] = value;
+  saveState();
+  renderPreview();
+}
+
+// Instructions
+function onInstructionChange(i, value) {
+  const agent = currentAgent();
+  if (!agent) return;
+  agent.instructions[i] = value;
+  saveState();
+  renderPreview();
+}
+function addInstruction() {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.instructions) agent.instructions = [];
+  agent.instructions.push('');
+  saveState();
+  renderInstructions(agent);
+  renderPreview();
+}
+function removeInstruction(i) {
+  const agent = currentAgent();
+  if (!agent) return;
+  agent.instructions.splice(i, 1);
+  saveState();
+  renderInstructions(agent);
+  renderPreview();
+}
+
+// Skills
+function onSkillFieldChange(si, field, value) {
+  const agent = currentAgent();
+  if (!agent || !agent.skills[si]) return;
+  agent.skills[si][field] = value;
+  saveState();
+  renderPreview();
+}
+function onSkillInstructionChange(si, ii, value) {
+  const agent = currentAgent();
+  if (!agent || !agent.skills[si]) return;
+  agent.skills[si].instructions[ii] = value;
+  saveState();
+  renderPreview();
+}
+function addSkillInstruction(si) {
+  const agent = currentAgent();
+  if (!agent || !agent.skills[si]) return;
+  if (!agent.skills[si].instructions) agent.skills[si].instructions = [];
+  agent.skills[si].instructions.push('');
+  saveState();
+  renderSkills(agent);
+  renderPreview();
+}
+function removeSkillInstruction(si, ii) {
+  const agent = currentAgent();
+  if (!agent || !agent.skills[si]) return;
+  agent.skills[si].instructions.splice(ii, 1);
+  saveState();
+  renderSkills(agent);
+  renderPreview();
+}
+function addSkill() {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.skills) agent.skills = [];
+  agent.skills.push({ name:'', description:'', instructions:[] });
+  saveState();
+  renderSkills(agent);
+  renderPreview();
+}
+function removeSkill(si) {
+  const agent = currentAgent();
+  if (!agent) return;
+  agent.skills.splice(si, 1);
+  saveState();
+  renderSkills(agent);
+  renderPreview();
+}
+
+// Rules
+function onRuleFieldChange(ri, field, value) {
+  const agent = currentAgent();
+  if (!agent || !agent.rules[ri]) return;
+  agent.rules[ri][field] = value;
+  saveState();
+  renderPreview();
+}
+function onRuleContentChange(ri, ci, value) {
+  const agent = currentAgent();
+  if (!agent || !agent.rules[ri]) return;
+  agent.rules[ri].content[ci] = value;
+  saveState();
+  renderPreview();
+}
+function addRuleContent(ri) {
+  const agent = currentAgent();
+  if (!agent || !agent.rules[ri]) return;
+  if (!agent.rules[ri].content) agent.rules[ri].content = [];
+  agent.rules[ri].content.push('');
+  saveState();
+  renderRules(agent);
+  renderPreview();
+}
+function removeRuleContent(ri, ci) {
+  const agent = currentAgent();
+  if (!agent || !agent.rules[ri]) return;
+  agent.rules[ri].content.splice(ci, 1);
+  saveState();
+  renderRules(agent);
+  renderPreview();
+}
+function addRule() {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.rules) agent.rules = [];
+  agent.rules.push({ title:'', content:[] });
+  saveState();
+  renderRules(agent);
+  renderPreview();
+}
+function removeRule(ri) {
+  const agent = currentAgent();
+  if (!agent) return;
+  agent.rules.splice(ri, 1);
+  saveState();
+  renderRules(agent);
+  renderPreview();
+}
+
+// MCP
+function onMcpFieldChange(mi, field, value) {
+  const agent = currentAgent();
+  if (!agent || !agent.mcpServers[mi]) return;
+  agent.mcpServers[mi][field] = value;
+  saveState();
+  renderPreview();
+}
+function onMcpCommandChange(mi, value) {
+  const agent = currentAgent();
+  if (!agent || !agent.mcpServers[mi]) return;
+  agent.mcpServers[mi].command = value.split(',').map(s=>s.trim()).filter(Boolean);
+  saveState();
+  renderPreview();
+}
+function onMcpEnvChange(mi, value) {
+  const agent = currentAgent();
+  if (!agent || !agent.mcpServers[mi]) return;
+  if (!value.trim()) { delete agent.mcpServers[mi].env; }
+  else {
+    const env = {};
+    value.split(',').forEach(pair => {
+      const [k,...v] = pair.trim().split('=');
+      if (k) env[k] = v.join('=');
+    });
+    agent.mcpServers[mi].env = env;
+  }
+  saveState();
+  renderPreview();
+}
+function addMcp() {
+  const agent = currentAgent();
+  if (!agent) return;
+  if (!agent.mcpServers) agent.mcpServers = [];
+  agent.mcpServers.push({ name:'', command:[], description:'' });
+  saveState();
+  renderMcp(agent);
+  renderPreview();
+}
+function removeMcp(mi) {
+  const agent = currentAgent();
+  if (!agent) return;
+  agent.mcpServers.splice(mi, 1);
+  saveState();
+  renderMcp(agent);
+  renderPreview();
+}
+
+// ============ Modal ============
+let modalCallback = null;
+function showModal(title, fields, onConfirm) {
+  // Remove existing
+  const existing = document.querySelector('.modal-overlay');
+  if (existing) existing.remove();
+
+  modalCallback = onConfirm;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+
+  let html = `<h3>${esc(title)}</h3>`;
+  fields.forEach((f, i) => {
+    if (f.type === 'select') {
+      html += `<div class="form-grid"><label>${esc(f.label)}</label><select id="modal_field_${i}">${f.options.map(o=>`<option value="${o.value}" ${o.value===f.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select></div>`;
+    } else {
+      html += `<div class="form-grid"><label>${esc(f.label)}</label><input type="text" id="modal_field_${i}" value="${esc(f.value)}"></div>`;
+    }
+  });
+  html += `<div class="modal-actions"><button onclick="closeModal()">取消</button><button class="primary" onclick="confirmModal()">确定</button></div>`;
+
+  modal.innerHTML = html;
+  overlay.appendChild(modal);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+  document.body.appendChild(overlay);
+
+  // Focus first input
+  const first = modal.querySelector('input,select');
+  if (first) { setTimeout(() => first.focus(), 50); }
+
+  // Store field defs
+  overlay.dataset.fields = JSON.stringify(fields);
+}
+
+function confirmModal() {
+  const overlay = document.querySelector('.modal-overlay');
+  if (!overlay || !modalCallback) return;
+  const fields = JSON.parse(overlay.dataset.fields);
+  const vals = {};
+  fields.forEach((f, i) => {
+    const el = document.getElementById('modal_field_' + i);
+    vals[f.key] = el ? el.value : '';
+  });
+  modalCallback(vals);
+  closeModal();
+}
+
+function closeModal() {
+  const overlay = document.querySelector('.modal-overlay');
+  if (overlay) overlay.remove();
+  modalCallback = null;
+}
+
+// ============ Init ============
+loadState();
+renderAll();
+</script>
+</body>
+</html>

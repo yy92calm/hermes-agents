@@ -1,0 +1,233 @@
+{
+  "team": {
+    "name": "research",
+    "description": "研究分析团队 - 多 Agent 协作完成从调研到输出的完整工作流",
+    "version": "0.1.0",
+    "orchestration": {
+      "strategy": "debate",
+      "maxConcurrency": 3
+    },
+    "agents": [
+      {
+        "name": "researcher",
+        "role": "高级研究员",
+        "description": "负责信息检索、文献调研和资料收集",
+        "instructions": [
+          "搜索和收集与任务相关的信息",
+          "从多个来源交叉验证信息的准确性",
+          "提取关键发现和核心数据点",
+          "返回结构化的研究笔记"
+        ],
+        "tools": {
+          "read": true,
+          "write": true,
+          "web_search": true
+        },
+        "agentConfig": {
+          "model": "claude-sonnet-4",
+          "temperature": 0.3,
+          "permissions": {
+            "web_search": "allow",
+            "read": "allow"
+          },
+          "color": "#D4A017",
+          "maxSteps": 20
+        },
+        "skills": [
+          {
+            "name": "information-retrieval",
+            "description": "Systematic information gathering and fact-checking",
+            "instructions": [
+              "Start with broad search then narrow down",
+              "Prefer primary sources over secondary",
+              "Cross-reference information across multiple sources",
+              "Note uncertainty and conflicting information"
+            ]
+          },
+          {
+            "name": "critical-analysis",
+            "description": "Deep analysis of research materials",
+            "instructions": [
+              "Evaluate source credibility and bias",
+              "Identify logical gaps and contradictions",
+              "Synthesize findings across sources",
+              "Produce structured research notes"
+            ]
+          }
+        ],
+        "rules": [
+          {
+            "title": "Source Citation",
+            "content": [
+              "Every claim must cite its source",
+              "Use full URLs when referencing web sources",
+              "Distinguish between verified and unverified information",
+              "Include access date for web sources"
+            ]
+          },
+          {
+            "title": "Research Quality",
+            "content": [
+              "Prioritize peer-reviewed and official sources",
+              "Explicitly note when information is outdated",
+              "Flag conflicts between sources"
+            ]
+          }
+        ],
+        "mcpServers": [
+          {
+            "name": "web-search",
+            "command": [
+              "npx",
+              "-y",
+              "@anthropic/search"
+            ],
+            "description": "Web search for research",
+            "type": "local"
+          }
+        ]
+      },
+      {
+        "name": "analyst",
+        "role": "数据分析师",
+        "description": "负责数据清洗、统计分析和模式识别",
+        "instructions": [
+          "审查数据的质量和完整性",
+          "应用适当的统计方法进行分析",
+          "识别趋势、模式和异常值",
+          "用可视化方式呈现分析结果"
+        ],
+        "tools": [
+          "read",
+          "write",
+          "edit",
+          "bash",
+          "grep"
+        ],
+        "agentConfig": {
+          "model": "gpt-4o",
+          "temperature": 0.2
+        },
+        "skills": [
+          {
+            "name": "data-analysis",
+            "description": "Statistical analysis and pattern identification",
+            "instructions": [
+              "Always check data quality before analysis",
+              "Choose appropriate statistical methods",
+              "Report confidence levels and limitations",
+              "Support findings with quantitative evidence"
+            ]
+          },
+          {
+            "name": "visualization",
+            "description": "Data visualization and chart creation",
+            "instructions": [
+              "Choose chart types appropriate for the data",
+              "Label axes and include legends",
+              "Highlight key insights visually",
+              "Ensure accessibility (color-blind friendly)"
+            ]
+          }
+        ],
+        "rules": [
+          {
+            "title": "Analysis Standards",
+            "content": [
+              "Clearly state assumptions and limitations",
+              "Include confidence intervals where applicable",
+              "Flag data quality issues before proceeding"
+            ]
+          }
+        ],
+        "mcpServers": [
+          {
+            "name": "data-query",
+            "command": [
+              "python",
+              "-m",
+              "data_query_server"
+            ],
+            "description": "SQL and data querying MCP server",
+            "type": "local"
+          }
+        ]
+      },
+      {
+        "name": "writer",
+        "role": "报告撰写师",
+        "description": "负责报告撰写、文档组织和结果呈现",
+        "instructions": [
+          "将研究结果组织成清晰的文档结构",
+          "使用合适的语言风格面向目标读者",
+          "确保报告逻辑连贯、论据充分",
+          "包含执行摘要和关键结论"
+        ],
+        "tools": [
+          "write",
+          "edit",
+          "read"
+        ],
+        "agentConfig": {
+          "model": "claude-opus-4",
+          "temperature": 0.5,
+          "permissions": {
+            "read": "allow",
+            "write": "allow"
+          }
+        },
+        "skills": [
+          {
+            "name": "report-writing",
+            "description": "Professional report and document creation",
+            "instructions": [
+              "Start with an executive summary",
+              "Use clear section headings and transitions",
+              "Include data visualizations where helpful",
+              "End with actionable conclusions and recommendations"
+            ]
+          },
+          {
+            "name": "technical-writing",
+            "description": "Technical documentation and specifications",
+            "instructions": [
+              "Define terminology and acronyms on first use",
+              "Use consistent formatting throughout",
+              "Include code examples where applicable",
+              "Provide version history and changelog"
+            ]
+          }
+        ],
+        "rules": [
+          {
+            "title": "Writing Standards",
+            "content": [
+              "Use active voice and concise language",
+              "Target readability level appropriate for audience",
+              "Include table of contents for documents over 5 pages"
+            ]
+          }
+        ],
+        "mcpServers": [
+          {
+            "name": "doc-generator",
+            "command": [
+              "python",
+              "-m",
+              "doc_generator_server",
+              "--format",
+              "pdf"
+            ],
+            "description": "Document generation from structured content",
+            "type": "local",
+            "env": {
+              "OUTPUT_DIR": "./reports",
+              "DEFAULT_FORMAT": "pdf"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "updatedAt": "2026-06-16T11:46:46.814Z"
+}

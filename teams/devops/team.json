@@ -1,0 +1,50 @@
+{
+  "team": {
+    "name": "devops",
+    "description": "运维与部署团队",
+    "version": "0.1.0",
+    "agents": [
+      {
+        "name": "deploy",
+        "role": "部署工程师",
+        "description": "An expert 部署工程师 in the devops team",
+        "instructions": [
+          "Act as an expert 部署工程师",
+          "Analyze the task thoroughly",
+          "Provide high-quality output"
+        ],
+        "tools": [
+          "read",
+          "write",
+          "edit",
+          "bash",
+          "grep",
+          "glob"
+        ]
+      },
+      {
+        "name": "monitor",
+        "role": "监控专家",
+        "description": "An expert 监控专家 in the devops team",
+        "instructions": [
+          "Act as an expert 监控专家",
+          "Analyze the task thoroughly",
+          "Provide high-quality output"
+        ],
+        "tools": [
+          "read",
+          "write",
+          "edit",
+          "bash",
+          "grep",
+          "glob"
+        ]
+      }
+    ],
+    "orchestration": {
+      "strategy": "parallel",
+      "maxConcurrency": 3
+    }
+  },
+  "updatedAt": "2026-06-15T08:43:50.084Z"
+}
