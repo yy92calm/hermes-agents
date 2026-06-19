@@ -108,7 +108,7 @@ export const server = async () => {
           ? `专家团调度器 — 当前: ${teamInfo.description}`
           : "专家团调度器 — 使用前请先激活团队",
         prompt: PROXY_PROMPT,
-        mode: "primary",
+        mode: "subagent",
       }
     },
 
