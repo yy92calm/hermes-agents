@@ -1,0 +1,19 @@
+{
+  "name": "trading-agents",
+  "version": "0.1.0",
+  "description": "金融交易多Agent辩论决策团队 (仿TradingAgents)",
+  "agents": [
+    "./agents/fundamentals-analyst.md",
+    "./agents/sentiment-analyst.md",
+    "./agents/news-analyst.md",
+    "./agents/technical-analyst.md",
+    "./agents/bull-researcher.md",
+    "./agents/bear-researcher.md",
+    "./agents/research-manager.md",
+    "./agents/trader.md",
+    "./agents/aggressive-risk.md",
+    "./agents/conservative-risk.md",
+    "./agents/neutral-risk.md",
+    "./agents/risk-manager.md"
+  ]
+}

@@ -9,61 +9,171 @@ export type {
   PluginGenerationResult,
   TeamFile,
 } from "./types.js"
-import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, cpSync } from "fs"
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "fs"
 import { join, dirname } from "path"
 import type { ExpertTeam, ExpertAgent, PluginGenerationResult } from "./types.js"
-import { generatePluginSource, generateConfigBasedPluginSource } from "./generator.js"
-export { generatePluginSource as generatePluginCode }
 
-const MODEL_MAP: Record<string, string> = {
-  "claude-sonnet-4": "anthropic/claude-sonnet-4-20250514",
-  "claude-opus-4": "anthropic/claude-opus-4-20250514",
-  "claude-haiku-4": "anthropic/claude-haiku-4-20250514",
-  "claude-sonnet-4.5": "anthropic/claude-sonnet-4-5-20250514",
-  "claude-opus-4.5": "anthropic/claude-opus-4-5-20250514",
-  "gpt-4o": "openai/gpt-4o",
-  "gpt-4.1": "openai/gpt-4-1",
-  "gpt-5": "openai/gpt-5",
-  "gemini-2.5-flash": "google/gemini-2-5-flash",
-  "gemini-2.5-pro": "google/gemini-2-5-pro",
-  "deepseek-v3": "deepseek/deepseek-v3",
-  "deepseek-r1": "deepseek/deepseek-r1",
+// ── WorkBuddy format helpers ──────────────────────────────────────
+
+function parseFrontmatter(text: string): { meta: Record<string, string>; body: string } {
+  const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/)
+  if (!match) return { meta: {}, body: text }
+  const meta: Record<string, string> = {}
+  for (const line of match[1].split("\n")) {
+    const idx = line.indexOf(":")
+    if (idx > 0) {
+      const key = line.slice(0, idx).trim()
+      let val = line.slice(idx + 1).trim()
+      if (val.startsWith(">-")) { meta[key] = ""; continue }
+      if (val.startsWith(">")) val = val.slice(1).trim()
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1)
+      }
+      meta[key] = val
+    }
+  }
+  return { meta, body: match[2].trim() }
 }
 
-function resolveModel(model: string | undefined): string | undefined {
-  if (!model) return undefined
-  return MODEL_MAP[model] ?? model
+function encodeFrontmatter(meta: Record<string, string>): string {
+  const lines: string[] = ["---"]
+  for (const [k, v] of Object.entries(meta)) {
+    if (v.includes("\n")) lines.push(`${k}: >-\n  ${v.replace(/\n/g, "\n  ")}`)
+    else lines.push(`${k}: "${v}"`)
+  }
+  lines.push("---")
+  return lines.join("\n")
 }
 
-/** The generated directory for a team: teams/{name}/generated */
-export function teamGeneratedDir(teamsDir: string, teamName: string): string {
-  return join(teamsDir, teamName, "generated")
+function teamDir(teamsDir: string, teamName: string): string {
+  return join(teamsDir, teamName)
 }
 
-/** Relative path from project root to the team's generated plugin */
-export function teamPluginRelPath(teamName: string): string {
-  return `teams/${teamName}/generated/plugin.js`
+function pluginJsonPath(teamsDir: string, teamName: string): string {
+  return join(teamDir(teamsDir, teamName), "plugin.json")
 }
+
+function agentsDir(teamsDir: string, teamName: string): string {
+  return join(teamDir(teamsDir, teamName), "agents")
+}
+
+// ── Team I/O ───────────────────────────────────────────────────────
 
 export function loadTeam(teamsDir: string, teamName: string): ExpertTeam | null {
-  const file = join(teamsDir, teamName, "team.json")
-  if (!existsSync(file)) return null
+  let pp = join(teamsDir, teamName, "plugin.json")
+  if (!existsSync(pp)) {
+    pp = join(teamsDir, teamName, ".codebuddy-plugin", "plugin.json")
+  }
+  if (!existsSync(pp)) return null
   try {
-    const data = JSON.parse(readFileSync(file, "utf-8"))
-    return data.team ?? data
+    const plugin = JSON.parse(readFileSync(pp, "utf-8"))
+    const ad = agentsDir(teamsDir, teamName)
+    const agents: ExpertAgent[] = []
+
+    if (existsSync(ad)) {
+      for (const file of readdirSync(ad)) {
+        if (!file.endsWith(".md")) continue
+        const content = readFileSync(join(ad, file), "utf-8")
+        const { meta, body } = parseFrontmatter(content)
+        agents.push({
+          name: meta.name || file.replace(".md", ""),
+          role: meta.role || meta.name || file.replace(".md", ""),
+          description: meta.description || "",
+          instructions: [],
+          agentConfig: {
+            color: meta.color,
+          },
+          skills: [],
+          rules: [],
+          mcpServers: [],
+          _rawPrompt: body,
+          _rawMeta: meta,
+        } as any)
+      }
+    }
+
+    return {
+      name: teamName,
+      description: plugin.description || "",
+      version: plugin.version || "0.1.0",
+      agents,
+    }
   } catch {
     return null
   }
 }
 
 export function saveTeam(team: ExpertTeam, teamsDir: string): boolean {
-  const dir = join(teamsDir, team.name)
-  mkdirSync(dir, { recursive: true })
-  const file = join(dir, "team.json")
-  const data = { team, updatedAt: new Date().toISOString() }
-  writeFileSync(file, JSON.stringify(data, null, 2), "utf-8")
+  const td = teamDir(teamsDir, team.name)
+  mkdirSync(td, { recursive: true })
+
+  // Write plugin.json
+  const plugin = {
+    name: team.name,
+    version: team.version || "0.1.0",
+    description: team.description,
+    agents: team.agents.map((a) => `./agents/${a.name}.md`),
+  }
+  writeFileSync(join(td, "plugin.json"), JSON.stringify(plugin, null, 2) + "\n", "utf-8")
+
+  // Write agents/*.md
+  const ad = agentsDir(teamsDir, team.name)
+  mkdirSync(ad, { recursive: true })
+  for (const agent of team.agents) {
+    const meta: Record<string, string> = {
+      name: agent.name,
+      description: agent.description || `${agent.role}`,
+    }
+    if (agent.agentConfig?.color) meta.color = agent.agentConfig.color
+
+    const body = (agent as any)._rawPrompt || buildAgentBody(agent)
+    writeFileSync(join(ad, `${agent.name}.md`), encodeFrontmatter(meta) + "\n\n" + body + "\n", "utf-8")
+  }
+
   return true
 }
+
+function buildAgentBody(agent: ExpertAgent): string {
+  const parts: string[] = []
+  parts.push(`You are the **${agent.role}** (${agent.name}). ${agent.description}`)
+  parts.push("")
+
+  if (agent.instructions?.length) {
+    parts.push("## Instructions")
+    for (const inst of agent.instructions) parts.push(`- ${inst}`)
+    parts.push("")
+  }
+
+  if (agent.skills?.length) {
+    parts.push("## Skills")
+    for (const skill of agent.skills) {
+      parts.push(`- **${skill.name}**: ${skill.description}`)
+      if (skill.instructions?.length) {
+        for (const si of skill.instructions) parts.push(`  - ${si}`)
+      }
+    }
+    parts.push("")
+  }
+
+  if (agent.rules?.length) {
+    parts.push("## Rules")
+    for (const rule of agent.rules) {
+      parts.push(`- **${rule.title}**`)
+      for (const c of rule.content) parts.push(`  - ${c}`)
+    }
+    parts.push("")
+  }
+
+  if (agent.mcpServers?.length) {
+    parts.push("## Available MCP Servers")
+    for (const mcp of agent.mcpServers) parts.push(`- ${mcp.name}: ${mcp.command.join(" ")}`)
+    parts.push("")
+  }
+
+  return parts.join("\n")
+}
+
+// ── Agent manipulation ─────────────────────────────────────────────
 
 export function addAgentToTeam(team: ExpertTeam, agent: ExpertAgent): ExpertTeam {
   const existing = team.agents.findIndex((a) => a.name === agent.name)
@@ -72,12 +182,41 @@ export function addAgentToTeam(team: ExpertTeam, agent: ExpertAgent): ExpertTeam
   return team
 }
 
-// --- Agent config manipulation ---
-
 function findAgent(team: ExpertTeam, agentName: string): ExpertAgent {
-  const agent = team.agents.find((a) => a.name === agentName)
-  if (!agent) throw new Error(`Agent "${agentName}" not found in team "${team.name}"`)
-  return agent
+  const a = team.agents.find((x) => x.name === agentName)
+  if (!a) throw new Error(`Agent "${agentName}" not found in team "${team.name}"`)
+  return a
+}
+
+function ensureRawPrompt(agent: ExpertAgent): string {
+  if (!(agent as any)._rawPrompt) {
+    (agent as any)._rawPrompt = buildAgentBody(agent)
+  }
+  return (agent as any)._rawPrompt
+}
+
+function appendToBody(agent: ExpertAgent, section: string, ...lines: string[]): void {
+  let body = ensureRawPrompt(agent)
+  if (!body.includes(`## ${section}`)) {
+    body += `\n\n## ${section}\n`
+  }
+  for (const line of lines) {
+    body += `- ${line}\n`
+  }
+  (agent as any)._rawPrompt = body
+}
+
+function removeFromBody(agent: ExpertAgent, section: string, matchPattern: string): void {
+  let rawText = ensureRawPrompt(agent)
+  const sIdx = rawText.indexOf(`## ${section}`)
+  if (sIdx < 0) return
+  const nIdx = rawText.indexOf("\n## ", sIdx + 1)
+  const sEnd = nIdx > 0 ? nIdx : rawText.length
+  const sText = rawText.slice(sIdx, sEnd)
+  const sLines = sText.split("\n")
+  const sFiltered = sLines.filter((l) => !l.includes(matchPattern))
+  rawText = rawText.slice(0, sIdx) + sFiltered.join("\n") + rawText.slice(sEnd)
+  ;(agent as any)._rawPrompt = rawText
 }
 
 export function addSkillToAgent(team: ExpertTeam, agentName: string, skill: ExpertSkill): ExpertTeam {
@@ -86,13 +225,17 @@ export function addSkillToAgent(team: ExpertTeam, agentName: string, skill: Expe
   const existing = agent.skills.findIndex((s) => s.name === skill.name)
   if (existing >= 0) agent.skills[existing] = skill
   else agent.skills.push(skill)
+  appendToBody(agent, "Skills", `**${skill.name}**: ${skill.description}`)
+  if (skill.instructions) {
+    for (const inst of skill.instructions) appendToBody(agent, "Skills", `  - ${inst}`)
+  }
   return team
 }
 
 export function removeSkillFromAgent(team: ExpertTeam, agentName: string, skillName: string): ExpertTeam {
   const agent = findAgent(team, agentName)
-  if (!agent.skills) return team
-  agent.skills = agent.skills.filter((s) => s.name !== skillName)
+  if (agent.skills) agent.skills = agent.skills.filter((s) => s.name !== skillName)
+  removeFromBody(agent, "Skills", skillName)
   return team
 }
 
@@ -102,13 +245,15 @@ export function addRuleToAgent(team: ExpertTeam, agentName: string, rule: Expert
   const existing = agent.rules.findIndex((r) => r.title === rule.title)
   if (existing >= 0) agent.rules[existing] = rule
   else agent.rules.push(rule)
+  appendToBody(agent, "Rules", `**${rule.title}**`)
+  for (const c of rule.content) appendToBody(agent, "Rules", `  - ${c}`)
   return team
 }
 
 export function removeRuleFromAgent(team: ExpertTeam, agentName: string, ruleTitle: string): ExpertTeam {
   const agent = findAgent(team, agentName)
-  if (!agent.rules) return team
-  agent.rules = agent.rules.filter((r) => r.title !== ruleTitle)
+  if (agent.rules) agent.rules = agent.rules.filter((r) => r.title !== ruleTitle)
+  removeFromBody(agent, "Rules", ruleTitle)
   return team
 }
 
@@ -118,13 +263,14 @@ export function addMcpToAgent(team: ExpertTeam, agentName: string, mcp: ExpertMc
   const existing = agent.mcpServers.findIndex((m) => m.name === mcp.name)
   if (existing >= 0) agent.mcpServers[existing] = mcp
   else agent.mcpServers.push(mcp)
+  appendToBody(agent, "Available MCP Servers", `${mcp.name}: ${mcp.command.join(" ")}`)
   return team
 }
 
 export function removeMcpFromAgent(team: ExpertTeam, agentName: string, mcpName: string): ExpertTeam {
   const agent = findAgent(team, agentName)
-  if (!agent.mcpServers) return team
-  agent.mcpServers = agent.mcpServers.filter((m) => m.name !== mcpName)
+  if (agent.mcpServers) agent.mcpServers = agent.mcpServers.filter((m) => m.name !== mcpName)
+  removeFromBody(agent, "Available MCP Servers", mcpName)
   return team
 }
 
@@ -169,7 +315,7 @@ export function setAgentTools(team: ExpertTeam, agentName: string, tools: Record
   return team
 }
 
-// --- File generation ---
+// ── Skill / Rule file generation ───────────────────────────────────
 
 export function generateSkillFiles(team: ExpertTeam, skillsDir: string): string[] {
   const generated: string[] = []
@@ -217,148 +363,26 @@ export function generateRuleFiles(team: ExpertTeam, rulesDir: string): string[] 
   return generated
 }
 
-export function generateAgentFiles(team: ExpertTeam, agentsDir: string): string[] {
-  const generated: string[] = []
-  mkdirSync(agentsDir, { recursive: true })
-
-  for (const agent of team.agents) {
-    const agentName = `${team.name}-${agent.name}`
-    const lines: string[] = []
-
-    // Frontmatter
-    lines.push("---")
-    lines.push(`description: ${agent.role} - ${agent.description}`)
-    lines.push("mode: subagent")
-
-    const model = resolveModel(agent.agentConfig?.model)
-    if (model) lines.push(`model: ${model}`)
-
-    if (agent.agentConfig?.temperature !== undefined) {
-      lines.push(`temperature: ${agent.agentConfig.temperature}`)
-    }
-
-    if (agent.agentConfig?.permissions) {
-      lines.push("permission:")
-      for (const [key, val] of Object.entries(agent.agentConfig.permissions)) {
-        lines.push(`  ${key}: ${val}`)
-      }
-    }
-
-    lines.push("---")
-    lines.push("")
-
-    // Body
-    lines.push(`You are the **${agent.role}** (${agent.name}) in the **${team.name}** team.`)
-
-    if (agent.instructions?.length) {
-      lines.push("")
-      lines.push("## Instructions")
-      for (const inst of agent.instructions) {
-        lines.push(`- ${inst}`)
-      }
-    }
-
-    if (agent.skills?.length) {
-      lines.push("")
-      lines.push("## Skills")
-      for (const skill of agent.skills) {
-        lines.push(`- **${skill.name}**: ${skill.description}`)
-        if (skill.instructions?.length) {
-          for (const si of skill.instructions) {
-            lines.push(`  - ${si}`)
-          }
-        }
-      }
-    }
-
-    if (agent.rules?.length) {
-      lines.push("")
-      lines.push("## Rules")
-      for (const rule of agent.rules) {
-        lines.push(`- **${rule.title}**`)
-        for (const c of rule.content) {
-          lines.push(`  - ${c}`)
-        }
-      }
-    }
-
-    if (agent.mcpServers?.length) {
-      lines.push("")
-      lines.push("## Available MCP Servers")
-      for (const mcp of agent.mcpServers) {
-        lines.push(`- ${mcp.name}: ${mcp.command.join(" ")}`)
-      }
-    }
-
-    lines.push("")
-
-    const content = lines.join("\n")
-    const file = join(agentsDir, `${agentName}.md`)
-    writeFileSync(file, content, "utf-8")
-    generated.push(file)
-  }
-
-  return generated
-}
-
-export function generateMcpConfigSnippet(team: ExpertTeam): string {
-  const servers = team.agents.flatMap((a) => a.mcpServers ?? [])
-  if (servers.length === 0) return ""
-  const mcp: Record<string, unknown> = {}
-  for (const s of servers) {
-    mcp[s.name] = {
-      command: s.command,
-      description: s.description ?? `MCP server for ${team.name}`,
-      enabled: true,
-      type: s.type ?? "local",
-      ...(s.env ? { env: s.env } : {}),
-    }
-  }
-  return JSON.stringify({ mcp }, null, 2)
-}
-
-export function buildPlugin(team: ExpertTeam, teamsDir: string): PluginGenerationResult {
-  const generatedDir = teamGeneratedDir(teamsDir, team.name)
-  mkdirSync(generatedDir, { recursive: true })
-
-  // Clean stale agent files (no longer needed — config hook handles agents)
-  const staleAgents = join(generatedDir, "agents")
-  if (existsSync(staleAgents)) rmSync(staleAgents, { recursive: true, force: true })
-
-  // 1. Skill files for native OpenCode skill discovery
-  const skillsDir = join(generatedDir, "skills")
-  const skillFiles = generateSkillFiles(team, skillsDir)
-
-  // 2. Rule files for native OpenCode rule discovery
-  const rulesDir = join(generatedDir, "rules")
-  const ruleFiles = generateRuleFiles(team, rulesDir)
-
-  // 3. Plugin with config hook that injects agents + MCP at runtime
-  const source = generateConfigBasedPluginSource(team)
-  const pluginFile = join(generatedDir, "plugin.js")
-  writeFileSync(pluginFile, source, "utf-8")
-
-  const allFiles = [pluginFile, ...skillFiles, ...ruleFiles]
-
-  return {
-    success: true,
-    pluginPath: pluginFile,
-    generatedFiles: allFiles,
-  }
-}
+// ── Team listing ───────────────────────────────────────────────────
 
 export function listTeams(teamsDir: string): string[] {
   if (!existsSync(teamsDir)) return []
   try {
-    return readdirSync(teamsDir).filter((d) => existsSync(join(teamsDir, d, "team.json")))
+    return readdirSync(teamsDir).filter((d) => {
+      const p = join(teamsDir, d)
+      try {
+        return existsSync(join(p, "plugin.json"))
+          || existsSync(join(p, ".codebuddy-plugin", "plugin.json"))
+          || existsSync(join(p, "team.json"))
+      } catch { return false }
+    })
   } catch {
     return []
   }
 }
 
 export function listGeneratedPlugins(teamsDir: string): string[] {
-  const teams = listTeams(teamsDir)
-  return teams.filter((t) => existsSync(join(teamsDir, t, "generated", "plugin.js")))
+  return listTeams(teamsDir)
 }
 
 export function activeTeamFromConfig(baseDir: string): string | null {
@@ -371,39 +395,7 @@ export function activeTeamFromConfig(baseDir: string): string | null {
   }
 }
 
-export function updateOpendcodeConfig(teamName: string, baseDir: string): void {
-  const configFile = join(baseDir, "opencode.json")
-  const pluginPath = teamPluginRelPath(teamName)
-
-  let config: Record<string, unknown> = {}
-  if (existsSync(configFile)) {
-    try {
-      config = JSON.parse(readFileSync(configFile, "utf-8"))
-    } catch {
-      config = {}
-    }
-  }
-
-  config["$schema"] = "https://opencode.ai/config.json"
-  config.plugin = [pluginPath]
-
-  // Plugin's config hook injects agents + MCP at runtime — no need to set them here
-  delete config.agent
-  delete config.mcp
-
-  writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n", "utf-8")
-}
-
-function copyDirContents(src: string, dest: string): void {
-  if (!existsSync(src)) return
-  mkdirSync(dest, { recursive: true })
-  for (const entry of readdirSync(src)) {
-    const s = join(src, entry)
-    const d = join(dest, entry)
-    if (existsSync(d)) rmSync(d, { recursive: true, force: true })
-    cpSync(s, d, { recursive: true })
-  }
-}
+// ── Activate ───────────────────────────────────────────────────────
 
 export function activateTeam(teamName: string, baseDir: string): PluginGenerationResult {
   const teamsDir = join(baseDir, "teams")
@@ -411,27 +403,32 @@ export function activateTeam(teamName: string, baseDir: string): PluginGeneratio
   if (!team) return { success: false, error: `Team "${teamName}" not found` }
   if (team.agents.length === 0) return { success: false, error: `Team "${teamName}" has no agents` }
 
-  // 1. Build all artifacts into teams/{name}/generated/
-  const pluginResult = buildPlugin(team, teamsDir)
-  const generatedDir = teamGeneratedDir(teamsDir, teamName)
+  // 1. Generate skill files → .opencode/skills/
+  const skillsDir = join(baseDir, ".opencode", "skills")
+  const skillFiles = generateSkillFiles(team, skillsDir)
 
-  // 2. Copy skill files → .opencode/skills/
-  copyDirContents(join(generatedDir, "skills"), join(baseDir, ".opencode", "skills"))
+  // 2. Generate rule files → .opencode/rules/
+  const rulesDir = join(baseDir, ".opencode", "rules")
+  const ruleFiles = generateRuleFiles(team, rulesDir)
 
-  // 3. Copy rule files → .opencode/rules/
-  copyDirContents(join(generatedDir, "rules"), join(baseDir, ".opencode", "rules"))
-
-  // 4. Update opencode.json to point to this plugin
-  updateOpendcodeConfig(teamName, baseDir)
-
-  // 5. Write active marker
+  // 3. Write active marker
   const markerDir = join(baseDir, ".opencode")
   mkdirSync(markerDir, { recursive: true })
   writeFileSync(join(markerDir, ".team-active"), teamName, "utf-8")
 
   return {
     success: true,
-    pluginPath: pluginResult.pluginPath,
-    generatedFiles: pluginResult.generatedFiles ?? [],
+    pluginPath: join(baseDir, ".opencode", "plugins", "agent-team.js"),
+    generatedFiles: [...skillFiles, ...ruleFiles],
   }
+}
+
+// ── Legacy compat ──────────────────────────────────────────────────
+
+export function teamGeneratedDir(teamsDir: string, teamName: string): string {
+  return join(teamsDir, teamName, "generated")
+}
+
+export function teamPluginRelPath(teamName: string): string {
+  return `teams/${teamName}/plugin.json`
 }

@@ -1,0 +1,9 @@
+{
+  "name": "devops",
+  "version": "0.1.0",
+  "description": "运维与部署团队",
+  "agents": [
+    "./agents/deploy.md",
+    "./agents/monitor.md"
+  ]
+}

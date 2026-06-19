@@ -1,0 +1,12 @@
+{
+  "name": "product-team",
+  "version": "0.1.0",
+  "description": "产品研发全流程团队",
+  "agents": [
+    "./agents/product-designer.md",
+    "./agents/ux-designer.md",
+    "./agents/developer.md",
+    "./agents/qa-engineer.md",
+    "./agents/uat-tester.md"
+  ]
+}

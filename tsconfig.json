@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "paths": {
+      "@agent-team/core": ["./packages/core/src"],
+      "@agent-team/agent-presets": ["./packages/agent-presets/src"],
+      "@agent-team/skill-manager": ["./packages/skill-manager/src"],
+      "@agent-team/rule-manager": ["./packages/rule-manager/src"],
+      "@agent-team/mcp-manager": ["./packages/mcp-manager/src"],
+      "@agent-team/cli": ["./packages/cli/src"]
+    }
+  },
+  "include": ["packages/*/src/**/*.ts", "packages/*/bin/**/*.ts", ".opencode/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

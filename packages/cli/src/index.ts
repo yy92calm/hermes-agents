@@ -4,13 +4,9 @@ import {
   saveTeam,
   loadTeam,
   addAgentToTeam,
-  buildPlugin,
   activateTeam,
   activeTeamFromConfig,
-  teamGeneratedDir,
   listTeams,
-  listGeneratedPlugins,
-  teamPluginRelPath,
   addSkillToAgent,
   removeSkillFromAgent,
   addRuleToAgent,
@@ -62,18 +58,12 @@ Agents:
   set-max-steps <team> <agent> <n>    设置最大迭代步数
   set-tools <team> <agent> <json>     设置工具映射 (JSON: {"read":true,"bash":false})
 
-Build:
-  build-plugin <team>                 生成插件（agents 通过 config hook 注入）
-  build-all                           生成所有团队插件
-  watch                               监听 teams/ 变更自动重建
-
 Example:
   bun agent-team create-team research "研究分析团队"
   bun agent-team add-agent research researcher "高级研究员"
   bun agent-team add-skill research researcher info-retrieval "信息检索"
   bun agent-team add-mcp research analyst data-query python -m data_query_server
   bun agent-team set-model research researcher claude-sonnet-4
-  bun agent-team build-plugin research
   bun agent-team activate-team research
   # 然后在 OpenCode 中用 @"research-researcher" 调用专家
 `)
@@ -97,22 +87,13 @@ function findAgentOrExit(team: ExpertTeam, agentName: string): ExpertAgent {
   return agent
 }
 
-function saveAndPrint(team: ExpertTeam, teamName: string, action: string, rebuild = false): void {
+function saveAndPrint(team: ExpertTeam, teamName: string, action: string): void {
   saveTeam(team, TEAMS_DIR)
-  console.log(`${action} in teams/${teamName}/team.json`)
-  if (rebuild && team.agents.length > 0) {
-    buildPluginForTeam(teamName)
-  }
-}
-
-function parseFlags(args: string[]): { positional: string[]; rebuild: boolean } {
-  const rebuild = args.includes("--rebuild") || args.includes("-r")
-  const positional = args.filter((a) => a !== "--rebuild" && a !== "-r")
-  return { positional, rebuild }
+  console.log(`${action} in teams/${teamName}/plugin.json`)
 }
 
 export async function main(): Promise<void> {
-  const { positional: args, rebuild } = parseFlags(process.argv.slice(2))
+  const args = process.argv.slice(2).filter((a) => a !== "--rebuild" && a !== "-r")
 
   if (args.length === 0 || args[0] === "help" || args[0] === "--help") {
     showHelp()
@@ -147,7 +128,7 @@ export async function main(): Promise<void> {
       }
 
       saveTeam(team, TEAMS_DIR)
-      console.log(`Created team "${name}" at teams/${name}/team.json`)
+      console.log(`Created team "${name}" at teams/${name}/plugin.json`)
       console.log(`Add experts: bun agent-team add-agent ${name} <agent-name> "<role>"`)
       break
     }
@@ -180,7 +161,7 @@ export async function main(): Promise<void> {
       }
 
       addAgentToTeam(team, agent)
-      saveAndPrint(team, teamName, `Added "${agentName}" (${role})`, rebuild)
+      saveAndPrint(team, teamName, `Added "${agentName}" (${role})`)
       console.log(`\nAfter activation, use @"${teamName}-${agentName}" in OpenCode`)
       break
     }
@@ -198,7 +179,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       team.agents = team.agents.filter((a) => a.name !== agentName)
-      saveAndPrint(team, teamName, `Removed "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Removed "${agentName}"`)
       break
     }
 
@@ -222,7 +203,7 @@ export async function main(): Promise<void> {
       const skill: ExpertSkill = { name: skillName, description, instructions: instructions.length ? instructions : undefined }
 
       addSkillToAgent(team, agentName, skill)
-      saveAndPrint(team, teamName, `Added skill "${skillName}" to "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Added skill "${skillName}" to "${agentName}"`)
       break
     }
 
@@ -240,7 +221,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       removeSkillFromAgent(team, agentName, skillName)
-      saveAndPrint(team, teamName, `Removed skill "${skillName}" from "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Removed skill "${skillName}" from "${agentName}"`)
       break
     }
 
@@ -262,7 +243,7 @@ export async function main(): Promise<void> {
       const content = args.slice(4).filter(Boolean)
       const rule: ExpertRule = { title, content }
       addRuleToAgent(team, agentName, rule)
-      saveAndPrint(team, teamName, `Added rule "${title}" to "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Added rule "${title}" to "${agentName}"`)
       break
     }
 
@@ -280,7 +261,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       removeRuleFromAgent(team, agentName, ruleTitle)
-      saveAndPrint(team, teamName, `Removed rule "${ruleTitle}" from "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Removed rule "${ruleTitle}" from "${agentName}"`)
       break
     }
 
@@ -330,7 +311,7 @@ export async function main(): Promise<void> {
       }
 
       addMcpToAgent(team, agentName, mcp)
-      saveAndPrint(team, teamName, `Added MCP "${mcpName}" to "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Added MCP "${mcpName}" to "${agentName}"`)
       break
     }
 
@@ -348,7 +329,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       removeMcpFromAgent(team, agentName, mcpName)
-      saveAndPrint(team, teamName, `Removed MCP "${mcpName}" from "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Removed MCP "${mcpName}" from "${agentName}"`)
       break
     }
 
@@ -368,7 +349,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       setAgentModel(team, agentName, model)
-      saveAndPrint(team, teamName, `Set model for "${agentName}" to "${model}"`, rebuild)
+      saveAndPrint(team, teamName, `Set model for "${agentName}" to "${model}"`)
       break
     }
 
@@ -386,7 +367,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       setAgentTemperature(team, agentName, temperature)
-      saveAndPrint(team, teamName, `Set temperature for "${agentName}" to ${temperature}`, rebuild)
+      saveAndPrint(team, teamName, `Set temperature for "${agentName}" to ${temperature}`)
       break
     }
 
@@ -412,7 +393,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       setAgentPermissions(team, agentName, permissions)
-      saveAndPrint(team, teamName, `Set permissions for "${agentName}"`, rebuild)
+      saveAndPrint(team, teamName, `Set permissions for "${agentName}"`)
       break
     }
 
@@ -430,7 +411,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       setAgentColor(team, agentName, color)
-      saveAndPrint(team, teamName, `Set color for "${agentName}" to "${color}"`, rebuild)
+      saveAndPrint(team, teamName, `Set color for "${agentName}" to "${color}"`)
       break
     }
 
@@ -448,7 +429,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       setAgentMaxSteps(team, agentName, maxSteps)
-      saveAndPrint(team, teamName, `Set maxSteps for "${agentName}" to ${maxSteps}`, rebuild)
+      saveAndPrint(team, teamName, `Set maxSteps for "${agentName}" to ${maxSteps}`)
       break
     }
 
@@ -474,34 +455,7 @@ export async function main(): Promise<void> {
       findAgentOrExit(team, agentName)
 
       setAgentTools(team, agentName, tools)
-      saveAndPrint(team, teamName, `Set tools for "${agentName}"`, rebuild)
-      break
-    }
-
-    // ─── Build ───────────────────────────────────────────
-
-    case "build-plugin": {
-      const teamName = args[1]
-      if (!teamName) {
-        console.error("Usage: bun agent-team build-plugin <team>")
-        process.exit(1)
-      }
-
-      if (teamName === "--all") {
-        const teams = listTeams(TEAMS_DIR)
-        if (teams.length === 0) { console.log("No teams found."); return }
-        for (const t of teams) buildPluginForTeam(t)
-        return
-      }
-
-      buildPluginForTeam(teamName)
-      break
-    }
-
-    case "build-all": {
-      const teams = listTeams(TEAMS_DIR)
-      if (teams.length === 0) { console.log("No teams found."); return }
-      for (const t of teams) buildPluginForTeam(t)
+      saveAndPrint(team, teamName, `Set tools for "${agentName}"`)
       break
     }
 
@@ -519,32 +473,7 @@ export async function main(): Promise<void> {
             for (const t of teams) {
               const team = loadTeam(TEAMS_DIR, t)
               const count = team?.agents.length ?? 0
-              const hasSkills = team?.agents.some((a) => a.skills?.length)
-              const hasRules = team?.agents.some((a) => a.rules?.length)
-              const hasMcp = team?.agents.some((a) => a.mcpServers?.length)
-              const hasPlugin = existsSync(join(TEAMS_DIR, t, "generated", "plugin.js"))
-              const extras = []
-              if (hasSkills) extras.push("skills")
-              if (hasRules) extras.push("rules")
-              if (hasMcp) extras.push("mcp")
-              if (hasPlugin) extras.push("built")
-              const tag = extras.length ? ` [${extras.join(", ")}]` : ""
-              console.log(`  ${t} (${count} experts)${tag}`)
-            }
-          }
-          break
-        }
-        case "plugins": {
-          const plugins = listGeneratedPlugins(TEAMS_DIR)
-          if (plugins.length === 0) {
-            console.log("No team plugins built.")
-          } else {
-            console.log("Generated Plugins:")
-            for (const t of plugins) {
-              const genDir = teamGeneratedDir(TEAMS_DIR, t)
-              const pluginFile = join(genDir, "plugin.js")
-              const size = existsSync(pluginFile) ? `${(readFileSync(pluginFile).length / 1024).toFixed(1)}KB` : "?"
-              console.log(`  teams/${t}/generated/plugin.js (${size})`)
+              console.log(`  ${t} (${count} experts)`)
             }
           }
           break
@@ -574,10 +503,6 @@ export async function main(): Promise<void> {
             if (a.rules?.length) console.log(`     rules: ${a.rules.map((r) => r.title).join(", ")}`)
             if (a.mcpServers?.length) console.log(`     mcp: ${a.mcpServers.map((m) => `${m.name} (${m.command.join(" ")})`).join(", ")}`)
           }
-
-          if (existsSync(join(teamGeneratedDir(TEAMS_DIR, teamName), "plugin.js"))) {
-            console.log(`\nGenerated: ${teamPluginRelPath(teamName)}`)
-          }
           break
         }
         default:
@@ -598,10 +523,10 @@ export async function main(): Promise<void> {
       const result = activateTeam(teamName, process.cwd())
       if (result.success) {
         console.log(`\n=== Activated: ${teamName} ===`)
-        console.log(`Plugin: teams/${teamName}/generated/plugin.js`)
+        console.log(`Plugin: .opencode/plugins/agent-team.js → teams/${teamName}/plugin.json`)
         const team = loadTeam(TEAMS_DIR, teamName)
         if (team) {
-          console.log(`\nSubagents registered via config hook:`)
+          console.log(`\nSubagents (runtime from plugin.json + agents/*.md):`)
           for (const a of team.agents) {
             const extras: string[] = []
             if (a.skills?.length) extras.push("skills")
@@ -648,11 +573,15 @@ export async function main(): Promise<void> {
       }
       console.log("Watching teams/ for changes... (Ctrl+C to stop)")
       const watcher = watch(TEAMS_DIR, { recursive: true }, (event, filename) => {
-        if (filename && filename.endsWith("team.json")) {
+        if (filename && (filename.endsWith("plugin.json") || filename.endsWith(".md"))) {
           const teamName = filename.split("/")[0]
           if (teamName) {
             console.log(`\nChange detected: ${filename}`)
-            buildPluginForTeam(teamName)
+            const team = loadTeam(TEAMS_DIR, teamName)
+            if (team) {
+              saveTeam(team, TEAMS_DIR)
+              console.log(`  Rebuilt: teams/${teamName}/plugin.json`)
+            }
           }
         }
       })
@@ -665,31 +594,5 @@ export async function main(): Promise<void> {
       console.error(`Unknown command: ${cmd}`)
       showHelp()
       process.exit(1)
-  }
-}
-
-function buildPluginForTeam(teamName: string): void {
-  const team = loadTeam(TEAMS_DIR, teamName)
-  if (!team) {
-    console.error(`Team "${teamName}" not found`)
-    return
-  }
-
-  if (team.agents.length === 0) {
-    console.error(`Team "${teamName}" has no agents.`)
-    return
-  }
-
-  const result = buildPlugin(team, TEAMS_DIR)
-  if (result.success) {
-    console.log(`\n=== ${teamName} ===`)
-    console.log(`Plugin: teams/${teamName}/generated/plugin.js`)
-    for (const a of team.agents) {
-      console.log(`  Agent: @"${teamName}-${a.name}" — ${a.role}`)
-    }
-    console.log(`\nActivate: bun agent-team activate-team ${teamName}`)
-    console.log("")
-  } else {
-    console.error(`Failed: ${result.error}`)
   }
 }

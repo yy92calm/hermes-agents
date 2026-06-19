@@ -1,0 +1,10 @@
+{
+  "name": "research",
+  "version": "0.1.0",
+  "description": "研究分析团队 - 多 Agent 协作完成从调研到输出的完整工作流",
+  "agents": [
+    "./agents/researcher.md",
+    "./agents/analyst.md",
+    "./agents/writer.md"
+  ]
+}
