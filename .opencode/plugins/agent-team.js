@@ -6,7 +6,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "fs"
 import { join } from "path"
 import { tool } from "@opencode-ai/plugin"
 
-const baseDir = "/Users/davidyang/Desktop/AgentTeam"
+const baseDir = process.cwd()
 
 function parseFrontmatter(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/)
