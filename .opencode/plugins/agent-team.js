@@ -3,12 +3,10 @@
 // 切换团队只需改 .opencode/.team-active，零重启
 
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "fs"
-import { join, dirname } from "path"
-import { fileURLToPath } from "url"
+import { join } from "path"
 import { tool } from "@opencode-ai/plugin"
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const baseDir = dirname(dirname(__dirname))
+const baseDir = "/Users/davidyang/Desktop/AgentTeam"
 
 function parseFrontmatter(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/)
