@@ -77,16 +77,6 @@ function parseBody(body: string): {
   }
 
   const skills: ExpertSkill[] = []
-  for (const item of parseList(sections["Skills"] ?? [])) {
-    const m = item.primary.match(/^\*\*(.+?)\*\*:\s*(.*)$/)
-    if (m) {
-      skills.push({
-        name: m[1],
-        description: m[2],
-        instructions: item.subs.length ? item.subs : undefined,
-      })
-    }
-  }
 
   const rules: ExpertRule[] = []
   for (const item of parseList(sections["Rules"] ?? [])) {
@@ -485,13 +475,12 @@ export function activateTeam(teamName: string, baseDir: string): PluginGeneratio
   if (!team) return { success: false, error: `Team "${teamName}" not found` }
   if (team.agents.length === 0) return { success: false, error: `Team "${teamName}" has no agents` }
 
-  // 1. Skills: clean + symlink team-level + generate agent-level
+  // 1. Skills: clean + symlink team-level only
   const skillsDir = join(baseDir, ".opencode", "skills")
   if (existsSync(skillsDir)) rmSync(skillsDir, { recursive: true, force: true })
   mkdirSync(skillsDir, { recursive: true })
-  const generatedFiles: string[] = []
 
-  // 1a. Team-level skills: symlink teams/{name}/skills/* → .opencode/skills/
+  // Symlink teams/{name}/skills/* → .opencode/skills/
   const teamSkillsDir = join(teamsDir, teamName, "skills")
   if (existsSync(teamSkillsDir)) {
     for (const entry of readdirSync(teamSkillsDir)) {
@@ -500,9 +489,6 @@ export function activateTeam(teamName: string, baseDir: string): PluginGeneratio
       try { symlinkSync(target, link) } catch {}
     }
   }
-
-  // 1b. Agent-level skills: generate from parsed body (supplements team-level)
-  generatedFiles.push(...generateSkillFiles(team, skillsDir))
 
   // 2. Rules: injected via config hook (instructions glob), no file copy
 
@@ -514,7 +500,7 @@ export function activateTeam(teamName: string, baseDir: string): PluginGeneratio
   return {
     success: true,
     pluginPath: join(baseDir, ".opencode", "plugins", "agent-team.js"),
-    generatedFiles,
+    generatedFiles: [],
   }
 }
 
