@@ -35,6 +35,87 @@ function parseFrontmatter(text: string): { meta: Record<string, string>; body: s
   return { meta, body: match[2].trim() }
 }
 
+/**
+ * Parse agent body back into structured skills/rules/mcpServers/instructions.
+ * Sections are delimited by `## <Title>`. Sub-items use 2-space indent.
+ */
+function parseBody(body: string): {
+  instructions: string[]
+  skills: ExpertSkill[]
+  rules: ExpertRule[]
+  mcpServers: ExpertMcpServer[]
+} {
+  const sections: Record<string, string[]> = {}
+  let currentTitle = ""
+  for (const line of body.split("\n")) {
+    const m = line.match(/^##\s+(.+?)\s*$/)
+    if (m) {
+      currentTitle = m[1].trim()
+      sections[currentTitle] = []
+    } else if (currentTitle) {
+      sections[currentTitle].push(line)
+    }
+  }
+
+  const parseList = (lines: string[]): { primary: string; subs: string[] }[] => {
+    const items: { primary: string; subs: string[] }[] = []
+    for (const line of lines) {
+      if (!line.trim()) continue
+      const isSub = line.startsWith("  ") || line.startsWith("\t")
+      if (!isSub && line.trim().startsWith("- ")) {
+        items.push({ primary: line.trim().slice(2), subs: [] })
+      } else if (items.length > 0) {
+        items[items.length - 1].subs.push(line.trim().replace(/^-\s*/, ""))
+      }
+    }
+    return items
+  }
+
+  const instructions: string[] = []
+  for (const item of parseList(sections["Instructions"] ?? [])) {
+    instructions.push(item.primary)
+  }
+
+  const skills: ExpertSkill[] = []
+  for (const item of parseList(sections["Skills"] ?? [])) {
+    const m = item.primary.match(/^\*\*(.+?)\*\*:\s*(.*)$/)
+    if (m) {
+      skills.push({
+        name: m[1],
+        description: m[2],
+        instructions: item.subs.length ? item.subs : undefined,
+      })
+    }
+  }
+
+  const rules: ExpertRule[] = []
+  for (const item of parseList(sections["Rules"] ?? [])) {
+    const m = item.primary.match(/^\*\*(.+?)\*\*:?$/)
+    if (m) {
+      rules.push({
+        title: m[1],
+        content: item.subs.length ? item.subs : [],
+      })
+    }
+  }
+
+  const mcpServers: ExpertMcpServer[] = []
+  for (const item of parseList(sections["Available MCP Servers"] ?? [])) {
+    const idx = item.primary.indexOf(":")
+    if (idx > 0) {
+      const name = item.primary.slice(0, idx).trim()
+      const cmdStr = item.primary.slice(idx + 1).trim()
+      mcpServers.push({
+        name,
+        command: cmdStr.split(/\s+/).filter(Boolean),
+      })
+    }
+  }
+
+  return { instructions, skills, rules, mcpServers }
+}
+
+
 function encodeFrontmatter(meta: Record<string, string>): string {
   const lines: string[] = ["---"]
   for (const [k, v] of Object.entries(meta)) {
@@ -75,17 +156,18 @@ export function loadTeam(teamsDir: string, teamName: string): ExpertTeam | null 
         if (!file.endsWith(".md")) continue
         const content = readFileSync(join(ad, file), "utf-8")
         const { meta, body } = parseFrontmatter(content)
+        const parsed = parseBody(body)
         agents.push({
           name: meta.name || file.replace(".md", ""),
           role: meta.role || meta.name || file.replace(".md", ""),
           description: meta.description || "",
-          instructions: [],
+          instructions: parsed.instructions,
           agentConfig: {
             color: meta.color,
           },
-          skills: [],
-          rules: [],
-          mcpServers: [],
+          skills: parsed.skills,
+          rules: parsed.rules,
+          mcpServers: parsed.mcpServers,
           _rawPrompt: body,
           _rawMeta: meta,
         } as any)
