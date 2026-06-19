@@ -9,7 +9,7 @@ export type {
   PluginGenerationResult,
   TeamFile,
 } from "./types.js"
-import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "fs"
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync, cpSync, symlinkSync, lstatSync, unlinkSync } from "fs"
 import { join, dirname } from "path"
 import type { ExpertTeam, ExpertAgent, PluginGenerationResult } from "./types.js"
 
@@ -485,13 +485,26 @@ export function activateTeam(teamName: string, baseDir: string): PluginGeneratio
   if (!team) return { success: false, error: `Team "${teamName}" not found` }
   if (team.agents.length === 0) return { success: false, error: `Team "${teamName}" has no agents` }
 
-  // 1. Generate skill files → .opencode/skills/
+  // 1. Skills: clean + symlink team-level + generate agent-level
   const skillsDir = join(baseDir, ".opencode", "skills")
-  const skillFiles = generateSkillFiles(team, skillsDir)
+  if (existsSync(skillsDir)) rmSync(skillsDir, { recursive: true, force: true })
+  mkdirSync(skillsDir, { recursive: true })
+  const generatedFiles: string[] = []
 
-  // 2. Generate rule files → .opencode/rules/
-  const rulesDir = join(baseDir, ".opencode", "rules")
-  const ruleFiles = generateRuleFiles(team, rulesDir)
+  // 1a. Team-level skills: symlink teams/{name}/skills/* → .opencode/skills/
+  const teamSkillsDir = join(teamsDir, teamName, "skills")
+  if (existsSync(teamSkillsDir)) {
+    for (const entry of readdirSync(teamSkillsDir)) {
+      const target = join(teamSkillsDir, entry)
+      const link = join(skillsDir, entry)
+      try { symlinkSync(target, link) } catch {}
+    }
+  }
+
+  // 1b. Agent-level skills: generate from parsed body (supplements team-level)
+  generatedFiles.push(...generateSkillFiles(team, skillsDir))
+
+  // 2. Rules: injected via config hook (instructions glob), no file copy
 
   // 3. Write active marker
   const markerDir = join(baseDir, ".opencode")
@@ -501,7 +514,7 @@ export function activateTeam(teamName: string, baseDir: string): PluginGeneratio
   return {
     success: true,
     pluginPath: join(baseDir, ".opencode", "plugins", "agent-team.js"),
-    generatedFiles: [...skillFiles, ...ruleFiles],
+    generatedFiles,
   }
 }
 

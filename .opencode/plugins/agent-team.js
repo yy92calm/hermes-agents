@@ -98,6 +98,16 @@ export const server = async () => {
         if (a.color) entry.color = a.color
         config.agent[`${team.name}-${a.name}`] = entry
       }
+
+      // Inject team rules via instructions (glob pattern, no file copy needed)
+      const rulesDir = join("teams", teamName, "rules")
+      if (existsSync(join(baseDir, rulesDir))) {
+        config.instructions = config.instructions || []
+        const glob = `${rulesDir}/*.md`
+        if (!config.instructions.includes(glob)) {
+          config.instructions.push(glob)
+        }
+      }
     },
     tool: {
       [`${team.name}-list`]: tool({
