@@ -1,10 +1,10 @@
 // AgentTeam Meta Plugin — 公共入口，运行时动态加载专家团
 // 支持 WorkBuddy 格式：plugin.json + agents/*.md (YAML frontmatter + Markdown body)
 // 切换团队只需改 .opencode/.team-active 标记文件
+// 零外部依赖，纯 config hook
 
 import { existsSync, readFileSync, readdirSync } from "fs"
-import { join, dirname } from "path"
-import { tool } from "@opencode-ai/plugin"
+import { join } from "path"
 
 function parseFrontmatter(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
@@ -31,7 +31,6 @@ function parseFrontmatter(text) {
 
 function loadWorkbuddyTeam(baseDir, teamName) {
   const teamDir = join(baseDir, "teams", teamName)
-  // plugin.json may be at root or in .codebuddy-plugin/
   let pluginPath = join(teamDir, "plugin.json")
   if (!existsSync(pluginPath)) {
     pluginPath = join(teamDir, ".codebuddy-plugin", "plugin.json")
@@ -79,7 +78,7 @@ export const server = async () => {
   const teamName = readFileSync(marker, "utf-8").trim()
   const team = loadWorkbuddyTeam(baseDir, teamName)
   if (!team) {
-    console.error(`[AgentTeam] Team "${teamName}" not found at teams/${teamName}/plugin.json`)
+    console.error(`[AgentTeam] Team "${teamName}" not found`)
     return {}
   }
 
@@ -108,19 +107,6 @@ export const server = async () => {
           config.instructions.push(glob)
         }
       }
-    },
-    tool: {
-      [`${team.name}-list`]: tool({
-        description: `List all experts in the ${team.name} team`,
-        args: {},
-        async execute() {
-          let out = `Team: ${team.name} | ${team.description}\n\nExperts:`
-          for (const a of team.agents) {
-            out += `\n  @${team.name}-${a.name} - ${a.description}`
-          }
-          return out
-        },
-      }),
     },
   }
 }
