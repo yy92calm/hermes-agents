@@ -1,25 +1,27 @@
 {
-  "name": "agent-team",
-  "version": "0.1.0",
-  "private": true,
-  "description": "AgentTeam - Expert Team scaffolding framework for OpenCode",
+  "name": "opencode-experthub",
+  "version": "1.0.0",
+  "description": "ExpertHub - OpenCode 动态专家加载插件系统，以专家包(pack)为单位动态管理 agent 和 skill",
   "type": "module",
-  "workspaces": [
-    "packages/core",
-    "packages/cli"
-  ],
+  "main": "plugin.js",
   "bin": {
-    "agent-team": "packages/cli/bin/agent-team.ts"
+    "experthub": "cli.js"
   },
   "scripts": {
-    "build": "bun run build:core && bun run build:cli",
-    "build:core": "bun build packages/core/src/index.ts --outdir packages/core/dist --target bun --format esm",
-    "build:cli": "bun build packages/cli/src/index.ts --outdir packages/cli/dist --target bun --format esm",
-    "watch": "bun run packages/cli/bin/agent-team.ts watch",
-    "clean": "rm -rf packages/*/dist teams .opencode/plugins/team-*.js",
-    "typecheck": "tsc --noEmit"
+    "cli": "bun cli.js",
+    "list": "bun cli.js list",
+    "install:plugin": "bun cli.js install",
+    "typecheck": "tsc --noEmit plugin.js cli.js lib/*.js 2>/dev/null || true"
   },
-  "keywords": ["opencode", "plugin", "expert-team", "agent", "scaffold"],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "agent",
+    "expert",
+    "skill",
+    "pack",
+    "mcp"
+  ],
   "license": "MIT",
   "dependencies": {
     "@opencode-ai/plugin": "^1.17.7"

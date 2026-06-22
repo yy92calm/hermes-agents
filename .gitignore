@@ -1,8 +1,5 @@
 node_modules/
-dist/
-*.tsbuildinfo
 .env
 .env.local
-bun.lock
 .opencode/
-teams/*/generated/
+.DS_Store

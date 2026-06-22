@@ -1,131 +1,97 @@
-# AgentTeam - 专家团脚手架
+# ExpertHub (opencode-experthub)
 
-基于 OpenCode 插件系统的专家团（Expert Team）框架。定义多 Agent 团队，自动生成为 OpenCode 插件，支持热加载替换。
+OpenCode 动态专家加载插件系统。以"专家包(pack)"为单位动态管理 agent、skill 和 rule。
+
+双层架构：**CLI 管理器**（管理 pack 与启用状态）+ **运行时插件 plugin.js**（5 个自定义 tool，即时调度）。
+
+**不复制文件**：专家/技能/规则全部留在 packs 目录，enable 只标记状态，plugin 运行时直接从 packs 读取调度。
 
 ## 项目结构
 
-- `packages/core/` - 核心：团队类型定义 + 插件代码生成引擎
-- `packages/cli/` - CLI：团队创建、Agent 管理、插件构建、热加载监听
-- `teams/` - 团队定义目录（每个团队一个独立子目录）
-- `teams/{name}/team.json` - 团队定义文件
-- `teams/{name}/generated/plugin.js` - 生成的 OpenCode 插件
-- `teams/{name}/generated/skills/` - 专家技能文件（SKILL.md）
-- `teams/{name}/generated/rules/` - 专家规则文件
-- `opencode.json` - 项目配置，激活团队后 `plugin` 指向对应团队的插件
+```
+AgentTeam/                          ← 目录名（npm 包名 opencode-experthub）
+├── plugin.js                       ← 运行时插件入口（ESM，5 tool + session.created 钩子）
+├── cli.js                          ← CLI 管理器（ESM，零依赖，node:fs 同步 API）
+├── lib/
+│   ├── pack.js                     ← pack 发现/扫描/解析/查找（CLI 与 plugin 共用，含极简 YAML 解析）
+│   └── convert.js                  ← WorkBuddy → OpenCode 格式转换
+├── package.json                    ← type: module，依赖 @opencode-ai/plugin
+├── teams/                          ← WorkBuddy 格式样本数据（import 测试用，只读）
+├── expert-hub-design.md            ← 设计文档 v2.0
+├── plans/                          ← 方案文档
+└── .opencode/                      ← 运行时生成（gitignore）
+    ├── plugins/expert-hub.js       ← install 后软链到根 plugin.js
+    ├── expert-hub/packs/           ← 专家包仓库（唯一数据源）
+    ├── expert-hub/enabled.json     ← 启用状态
+    └── opencode.json               ← 主配置（plugin 字段）
+```
+
+## 核心概念
+
+- **Pack（专家包）** = 一组 agent + skill + rule 的集合，由 `pack.json` 清单描述
+- **Agent（专家）** = 一个 `.md` 文件 = YAML frontmatter（description/mode/tools/model）+ 系统提示词 body。**文件名即专家名**
+- **Skill（技能）** = 一个目录，内含 `SKILL.md`（frontmatter + 操作指南）
+- **Rule（规则）** = 一个 `.md` 文件（frontmatter：description/alwaysApply + 规范正文）。**文件名即规则名**
+- ~~MCP~~ 暂不处理（与 agent/skill/rule 不同，后续按需扩展）
+
+## 运行时 5 个 tool（plugin.js）
+
+| 工具 | 参数 | 功能 |
+|------|------|------|
+| `expert_list` | 无 | 列出所有已启用专家与规则 |
+| `expert_dispatch` | expert, task | 隔离模式：用 `ctx.client.session` 创建独立子会话运行专家（SDK 不可用回退 inject） |
+| `expert_inject` | expert, task | 轻量模式：注入专家 `<expert_context>` XML 块到当前会话 |
+| `expert_skill` | skill | 加载 SKILL.md 内容到当前上下文 |
+| `expert_rule` | rule | 加载规则 `.md` 内容到当前上下文 |
+
+**所有 tool 只扫描已 enable 的 pack**（读 `enabled.json`），未启用的 pack 不被列出/调度。
+
+## CLI 命令
+
+```
+experthub list                          列出所有 pack 及启用状态
+experthub info <pack>                   查看 pack 详情（agents/skills/rules）
+experthub enable <pack>                 启用（仅标记状态，不复制文件）
+experthub disable <pack>                禁用
+experthub sync                          校验并清理失效的启用记录
+experthub import <src-dir> [--name X]   WorkBuddy → pack 转换（含 agents/skills/rules）
+experthub install                       软链 plugin.js + 写 opencode.json
+```
+
+所有命令用 `bun cli.js <cmd>` 运行（或 `bun run cli`）。
+
+## 关键约束
+
+1. **ESM 全包**：`type: "module"`，所有文件 `.js`
+2. **CLI/lib 零依赖**：只用 `node:fs/path/os`，手写极简 YAML frontmatter 解析（支持块标量 `>-`/`|`，不引入 js-yaml）
+3. **plugin.js 唯一依赖**：`@opencode-ai/plugin`；SDK client 通过 `ctx.client` 获取，**不自己 createOpencodeClient**
+4. **tool execute 返回值**：`string | {title?, output, metadata?}`；注入专家/规则上下文用文本/XML 块返回
+5. **不复制文件**：enable/disable 只更新 `enabled.json` 状态，packs 目录是唯一数据源
+6. **plugin 只扫已启用 pack**：读 `getEnabledPackNames()` 过滤 `scanAll*`/`find*`
+7. **install 用软链**：`.opencode/plugins/expert-hub.js` 软链到根 `plugin.js`，保留 `./lib/pack.js` 相对路径（软链失败 fallback 复制 plugin.js + lib/）
+8. **CLI 与 plugin 共用 `lib/pack.js`**：packs 目录发现逻辑一致（`getPacksDir()`）
+9. **Packs 目录发现优先级**：`EXPERTHUB_PACKS_DIR` 环境变量 → `.opencode/expert-hub/packs/` → `~/.config/opencode/expert-hub/packs/` → `./expert-hub-packs/`
+10. **文件操作用同步 API**（node:fs sync）
 
 ## 工作流
 
 ```bash
-# 1. 创建专家团
-bun agent-team create-team research "研究分析团队"
+# 1. 导入 WorkBuddy 团队为 pack（自动转换 agents/skills/rules）
+bun cli.js import teams/research --name research
 
-# 2. 添加专家
-bun agent-team add-agent research researcher "高级研究员"
-bun agent-team add-agent research analyst "数据分析师"
+# 2. 启用 pack（标记状态，不复制文件）
+bun cli.js enable research
 
-# 3. 编辑 team.json 丰富专家配置（技能、规则、MCP、模型等）
-#    vim teams/research/team.json
+# 3. 安装运行时插件（软链 + 配置 opencode.json）
+bun cli.js install
 
-# 4. 或用 CLI 快速配置
-bun agent-team add-skill research researcher information-retrieval "信息检索" "搜索并交叉验证"
-bun agent-team add-rule research researcher "引用规范" "每个结论必须标注来源"
-bun agent-team add-mcp research analyst data-query python -m data_query_server
-bun agent-team set-model research researcher claude-sonnet-4
-
-# 5. 生成 OpenCode 插件（自动产出 .js + skill + rule 文件）
-bun agent-team build-plugin research
-
-# 6. 激活团队（更新 opencode.json 指向 teams/{name}/generated/）
-bun agent-team activate-team research
-
-# 7. 查看当前激活的团队
-bun agent-team status
-
-# 8. 热更新：修改 team.json 后自动重建
-bun agent-team watch
-
-# 修改后自动重建（--rebuild 或 -r）
-bun agent-team add-skill research writer report-writing "报告撰写" -r
+# 4. 在 OpenCode 对话中使用
+#    expert_list
+#    expert_dispatch(expert: "researcher", task: "...")
+#    expert_rule(rule: "research_rules")
+#    expert_skill(skill: "research-workflow")
 ```
 
-每个团队独立文件夹，激活只改 opencode.json 引用路径：
+## 详细文档
 
-## 每位专家可配置的能力
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| `agentConfig.model` | 指定模型 | `"claude-sonnet-4"` |
-| `agentConfig.permissions` | 工具权限 | `{"web_search": "allow"}` |
-| `agentConfig.temperature` | 温度参数 | `0.2` |
-| `skills[]` | 技能定义，自动生成 SKILL.md | 见下方示例 |
-| `rules[]` | 规则定义，自动生成 .md 规则文件 | 见下方示例 |
-| `mcpServers[]` | MCP 服务器配置 | 生成 opencode.json 片段 |
-
-## team.json 完整示例
-
-```json
-{
-  "name": "research",
-  "description": "研究分析团队",
-  "agents": [
-    {
-      "name": "researcher",
-      "role": "高级研究员",
-      "instructions": ["搜索和收集信息", "交叉验证准确性"],
-      "agentConfig": {
-        "model": "claude-sonnet-4",
-        "permissions": { "web_search": "allow" }
-      },
-      "skills": [{
-        "name": "information-retrieval",
-        "description": "Systematic information gathering",
-        "instructions": ["Start broad then narrow", "Cross-reference sources"]
-      }],
-      "rules": [{
-        "title": "Source Citation",
-        "content": ["Every claim must cite its source"]
-      }],
-      "mcpServers": [{
-        "name": "web-search",
-        "command": ["npx", "-y", "@anthropic/search"]
-      }]
-    }
-  ]
-}
-```
-
-## 命令
-
-### 团队管理
-- `create-team <name> <description>` - 创建专家团
-- `activate-team <name>` - 激活指定团队
-- `status` - 查看当前激活的团队
-- `list teams|plugins|agents <team>` - 列出资源
-
-### Agent 管理
-- `add-agent <team> <name> <role>` - 添加专家
-- `remove-agent <team> <name>` - 移除专家
-
-### 技能 (Skills)
-- `add-skill <team> <agent> <name> <desc> [instructions...]` - 添加技能，可附带指令
-- `remove-skill <team> <agent> <name>` - 移除技能
-
-### 规则 (Rules)
-- `add-rule <team> <agent> <title> <content...>` - 添加规则，每个参数为一条内容
-- `remove-rule <team> <agent> <title>` - 移除规则
-
-### MCP 服务器
-- `add-mcp <team> <agent> <name> <command...> [--env KEY=VALUE]` - 添加 MCP
-- `remove-mcp <team> <agent> <name>` - 移除 MCP
-
-### Agent 配置
-- `set-model <team> <agent> <model>` - 设置模型 (如 claude-sonnet-4)
-- `set-temperature <team> <agent> <n>` - 设置温度 (0-1)
-- `set-permissions <team> <agent> <json>` - 设置权限
-
-### 构建
-- `build-plugin <team>` - 生成插件
-- `build-all` - 生成所有团队插件
-- `watch` - 监听 teams/ 变更自动重建
-
-所有命令支持 `--rebuild` (或 `-r`) 参数，修改后自动调用 `build-plugin`。
+见 `plans/expert-hub-实现说明.md`（实现说明与设计决策，与代码一致）。
